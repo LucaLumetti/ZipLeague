@@ -1,0 +1,50 @@
+{% extends 'rankings/base.html' %}
+
+{% block title %}Players{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Players</h1>
+    <a href="{% url 'player-create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Add New Player
+    </a>
+</div>
+
+{% if players %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>ELO Rating</th>
+                            <th>Win/Loss</th>
+                            <th>Win %</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in players %}
+                            <tr>
+                                <td>{{ player.name }}</td>
+                                <td>{{ player.elo_rating }}</td>
+                                <td>{{ player.matches_won }}/{{ player.matches_lost }}</td>
+                                <td>{{ player.win_percentage|floatformat:1 }}%</td>
+                                <td>
+                                    <a href="{% url 'player-detail' player.id %}" class="btn btn-sm btn-info text-white">View</a>
+                                    <a href="{% url 'player-update' player.id %}" class="btn btn-sm btn-warning">Edit</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="alert alert-info">
+        No players found. <a href="{% url 'player-create' %}">Add a new player</a> to get started!
+    </div>
+{% endif %}
+{% endblock %}

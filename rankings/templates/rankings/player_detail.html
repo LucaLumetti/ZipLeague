@@ -1,0 +1,121 @@
+{% extends 'rankings/base.html' %}
+
+{% block title %}{{ player.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">{{ player.name }}</h4>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-center mb-3">
+                    <div class="profile-avatar bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 120px; height: 120px; font-size: 48px;">
+                        {{ player.name|slice:":1" }}
+                    </div>
+                </div>
+                
+                <table class="table">
+                    <tr>
+                        <th>ELO Rating:</th>
+                        <td>{{ player.elo_rating }}</td>
+                    </tr>
+                    <tr>
+                        <th>Matches Played:</th>
+                        <td>{{ player.matches_played }}</td>
+                    </tr>
+                    <tr>
+                        <th>Win/Loss:</th>
+                        <td>{{ player.matches_won }}/{{ player.matches_lost }}</td>
+                    </tr>
+                    <tr>
+                        <th>Win Percentage:</th>
+                        <td>{{ player.win_percentage|floatformat:1 }}%</td>
+                    </tr>
+                    <tr>
+                        <th>Member Since:</th>
+                        <td>{{ player.created_at|date:"F d, Y" }}</td>
+                    </tr>
+                </table>
+                
+                <a href="{% url 'player-update' player.id %}" class="btn btn-warning w-100">Edit Player</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">Match History</h4>
+            </div>
+            <div class="card-body">
+                {% if matches %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Teams</th>
+                                    <th>Score</th>
+                                    <th>Result</th>
+                                    <th>ELO Change</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for match in matches %}
+                                    <tr>
+                                        <td>{{ match.date_played|date:"M d, Y" }}</td>
+                                        <td>
+                                            <span {% if player == match.team1_player1 or player == match.team1_player2 %} class="text-primary fw-bold"{% endif %}>
+                                                {{ match.team1_player1.name }} & {{ match.team1_player2.name }}
+                                            </span>
+                                            vs
+                                            <span {% if player == match.team2_player1 or player == match.team2_player2 %} class="text-primary fw-bold"{% endif %}>
+                                                {{ match.team2_player1.name }} & {{ match.team2_player2.name }}
+                                            </span>
+                                        </td>
+                                        <td>{{ match.team1_score }} - {{ match.team2_score }}</td>
+                                        <td>
+                                            {% if match.result == 'team1_win' %}
+                                                {% if player == match.team1_player1 or player == match.team1_player2 %}
+                                                    <span class="badge bg-success">Won</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">Lost</span>
+                                                {% endif %}
+                                            {% else %}
+                                                {% if player == match.team2_player1 or player == match.team2_player2 %}
+                                                    <span class="badge bg-success">Won</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">Lost</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if match.result == 'team1_win' %}
+                                                {% if player == match.team1_player1 or player == match.team1_player2 %}
+                                                    <span class="text-success">+{{ match.elo_change }}</span>
+                                                {% else %}
+                                                    <span class="text-danger">-{{ match.elo_change }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                {% if player == match.team2_player1 or player == match.team2_player2 %}
+                                                    <span class="text-success">+{{ match.elo_change }}</span>
+                                                {% else %}
+                                                    <span class="text-danger">-{{ match.elo_change }}</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">This player hasn't played any matches yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

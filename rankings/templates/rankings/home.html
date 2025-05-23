@@ -1,0 +1,96 @@
+{% extends 'rankings/base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="jumbotron bg-light p-5 rounded">
+    <h1 class="display-4">Welcome to SpikeBall Rankings!</h1>
+    <p class="lead">Track your SpikeBall matches, see player rankings, and find out who's the best in your league.</p>
+    <hr class="my-4">
+    <p>Get started by adding players and recording your matches.</p>
+    <div class="d-flex gap-2">
+        <a class="btn btn-primary btn-lg" href="{% url 'player-create' %}" role="button">Add Player</a>
+        <a class="btn btn-success btn-lg" href="{% url 'match-create' %}" role="button">Record Match</a>
+        <a class="btn btn-info btn-lg text-white" href="{% url 'player-list' %}" role="button">View Rankings</a>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Top Players</h5>
+            </div>
+            <div class="card-body">
+                {% if players %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Player</th>
+                                    <th>ELO</th>
+                                    <th>W/L</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for player in players|slice:":5" %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td><a href="{% url 'player-detail' player.id %}">{{ player.name }}</a></td>
+                                        <td>{{ player.elo_rating }}</td>
+                                        <td>{{ player.matches_won }}/{{ player.matches_lost }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <a href="{% url 'player-list' %}" class="btn btn-primary btn-sm">View All Rankings</a>
+                {% else %}
+                    <p class="text-muted">No players yet. <a href="{% url 'player-create' %}">Add some players</a> to get started!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Recent Matches</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_matches %}
+                    <div class="list-group">
+                        {% for match in recent_matches %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ match.team1_player1.name }} & {{ match.team1_player2.name }}</strong> vs 
+                                        <strong>{{ match.team2_player1.name }} & {{ match.team2_player2.name }}</strong>
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-primary">{{ match.team1_score }}</span> - 
+                                        <span class="badge bg-primary">{{ match.team2_score }}</span>
+                                    </div>
+                                </div>
+                                <div class="small text-muted mt-1">
+                                    {{ match.date_played|date:"F d, Y" }} - 
+                                    Winner: 
+                                    {% if match.result == "team1_win" %}
+                                        {{ match.team1_player1.name }} & {{ match.team1_player2.name }}
+                                    {% else %}
+                                        {{ match.team2_player1.name }} & {{ match.team2_player2.name }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <a href="{% url 'match-list' %}" class="btn btn-success btn-sm mt-3">View All Matches</a>
+                {% else %}
+                    <p class="text-muted">No matches recorded yet. <a href="{% url 'match-create' %}">Record a match</a> to get started!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

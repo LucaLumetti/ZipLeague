@@ -1,0 +1,55 @@
+{% extends 'rankings/base.html' %}
+
+{% block title %}Matches{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Matches</h1>
+    <a href="{% url 'match-create' %}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Record New Match
+    </a>
+</div>
+
+{% if matches %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Team 1</th>
+                            <th>Team 2</th>
+                            <th>Score</th>
+                            <th>Winner</th>
+                            <th>ELO Change</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for match in matches %}
+                            <tr>
+                                <td>{{ match.date_played|date:"M d, Y" }}</td>
+                                <td>{{ match.team1_player1.name }} & {{ match.team1_player2.name }}</td>
+                                <td>{{ match.team2_player1.name }} & {{ match.team2_player2.name }}</td>
+                                <td>{{ match.team1_score }} - {{ match.team2_score }}</td>
+                                <td>
+                                    {% if match.result == "team1_win" %}
+                                        <span class="badge bg-success">{{ match.team1_player1.name }} & {{ match.team1_player2.name }}</span>
+                                    {% else %}
+                                        <span class="badge bg-success">{{ match.team2_player1.name }} & {{ match.team2_player2.name }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ match.elo_change }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="alert alert-info">
+        No matches found. <a href="{% url 'match-create' %}">Record a new match</a> to get started!
+    </div>
+{% endif %}
+{% endblock %}
