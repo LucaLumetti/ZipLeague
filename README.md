@@ -1,4 +1,3 @@
-```markdown
 # SpikeBall Ranking App
 
 A Django application to track SpikeBall matches and player ELO rankings.
@@ -91,4 +90,3 @@ A Django application to track SpikeBall matches and player ELO rankings.
 *   Gunicorn (WSGI server)
 *   Whitenoise (Static file serving)
 *   Docker
-```
