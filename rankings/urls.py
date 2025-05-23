@@ -16,4 +16,7 @@ urlpatterns = [
     
     # Ranking URL
     path('rankings/', views.RankingListView.as_view(), name='rankings'),
+    
+    # User registration (admin only)
+    path('register/', views.UserRegistrationView.as_view(), name='register'),
 ]

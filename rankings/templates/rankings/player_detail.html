@@ -39,7 +39,9 @@
                     </tr>
                 </table>
                 
-                <a href="{% url 'player-update' player.id %}" class="btn btn-warning w-100">Edit Player</a>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'player-update' player.id %}" class="btn btn-warning w-100">Edit Player</a>
+                {% endif %}
             </div>
         </div>
     </div>

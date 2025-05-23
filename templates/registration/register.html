@@ -1,0 +1,71 @@
+{% extends 'rankings/base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Register New User{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">Register New User</h3>
+                <small class="text-muted">Admin only - Register new users for the system</small>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            {{ form.errors }}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
+                        {{ form.username|add_class:"form-control" }}
+                        {% if form.username.errors %}
+                            <div class="text-danger">{{ form.username.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ form.username.help_text }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.password1.id_for_label }}" class="form-label">Password</label>
+                        {{ form.password1|add_class:"form-control" }}
+                        {% if form.password1.errors %}
+                            <div class="text-danger">{{ form.password1.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ form.password1.help_text }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.password2.id_for_label }}" class="form-label">Password Confirmation</label>
+                        {{ form.password2|add_class:"form-control" }}
+                        {% if form.password2.errors %}
+                            <div class="text-danger">{{ form.password2.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ form.password2.help_text }}</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success">Register User</button>
+                        <a href="{% url 'home' %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-control {
+        margin-bottom: 0.5rem;
+    }
+    .form-text {
+        font-size: 0.875em;
+    }
+</style>
+{% endblock %}

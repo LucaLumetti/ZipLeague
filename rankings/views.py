@@ -3,6 +3,9 @@ from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView
 from django.urls import reverse_lazy
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 from django.db.models import Q
 
 from .models import Player, Match
@@ -41,7 +44,7 @@ class PlayerDetailView(DetailView):
         ).distinct().order_by('-date_played') # Ensure distinct matches and order by date
         return context
 
-class PlayerCreateView(CreateView):
+class PlayerCreateView(LoginRequiredMixin, CreateView):
     model = Player
     form_class = PlayerForm
     template_name = 'rankings/player_form.html'
@@ -51,7 +54,7 @@ class PlayerCreateView(CreateView):
         messages.success(self.request, f"Player {form.instance.name} created successfully.")
         return super().form_valid(form)
 
-class PlayerUpdateView(UpdateView):
+class PlayerUpdateView(LoginRequiredMixin, UpdateView):
     model = Player
     form_class = PlayerForm
     template_name = 'rankings/player_form.html'
@@ -73,7 +76,7 @@ class MatchListView(ListView):
     context_object_name = 'matches'
     ordering = ['-date_played'] # Show most recent matches first
 
-class MatchCreateView(CreateView):
+class MatchCreateView(LoginRequiredMixin, CreateView):
     model = Match
     form_class = MatchForm
     template_name = 'rankings/match_form.html'
@@ -104,3 +107,18 @@ class RankingListView(ListView):
             return sorted(queryset, key=lambda p: p.win_percentage, reverse=(direction == 'desc'))
         
         return Player.objects.all().order_by(order_by_field)
+
+class UserRegistrationView(UserPassesTestMixin, CreateView):
+    model = User
+    form_class = UserCreationForm
+    template_name = 'registration/register.html'
+    success_url = reverse_lazy('home')
+    
+    def test_func(self):
+        # Only allow superusers (admin) to register new users
+        return self.request.user.is_superuser
+    
+    def form_valid(self, form):
+        user = form.save()
+        messages.success(self.request, f"User {user.username} has been registered successfully.")
+        return super().form_valid(form)

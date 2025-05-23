@@ -33,7 +33,7 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'home' %}">Home</a>
                     </li>
@@ -46,6 +46,35 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'rankings' %}">Rankings</a>
                     </li>
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'player-create' %}">Add Player</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'match-create' %}">Add Match</a>
+                        </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                Welcome, {{ user.first_name|default:user.username }}
+                            </a>
+                            <ul class="dropdown-menu">
+                                {% if user.is_superuser %}
+                                    <li><a class="dropdown-item" href="{% url 'register' %}">Register New User</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'admin:index' %}">Admin Panel</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                {% endif %}
+                                <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'login' %}">Login</a>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>

@@ -5,9 +5,11 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Matches</h1>
-    <a href="{% url 'match-create' %}" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i> Record New Match
-    </a>
+    {% if user.is_authenticated %}
+        <a href="{% url 'match-create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Record New Match
+        </a>
+    {% endif %}
 </div>
 
 {% if matches %}
@@ -49,7 +51,7 @@
     </div>
 {% else %}
     <div class="alert alert-info">
-        No matches found. <a href="{% url 'match-create' %}">Record a new match</a> to get started!
+        No matches found. {% if user.is_authenticated %}<a href="{% url 'match-create' %}">Record a new match</a> to get started!{% else %}Login to record matches.{% endif %}
     </div>
 {% endif %}
 {% endblock %}
