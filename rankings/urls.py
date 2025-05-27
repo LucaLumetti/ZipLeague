@@ -18,8 +18,8 @@ urlpatterns = [
     # Ranking URL
     path('rankings/', views.RankingListView.as_view(), name='rankings'),
     
-    # ELO Recomputation (admin only)
-    path('admin/elo-recompute/', views.EloRecomputeView.as_view(), name='elo-recompute'),
+    # ELO Recomputation (admin only) - changed from admin/elo-recompute/ to avoid conflict
+    path('elo-recompute/', views.EloRecomputeView.as_view(), name='elo-recompute'),
     
     # User registration (admin only)
     path('register/', views.UserRegistrationView.as_view(), name='register'),
