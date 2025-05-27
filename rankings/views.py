@@ -43,11 +43,87 @@ class PlayerDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         player = self.get_object()
         # Fetch all matches involving this player for their detail page
-        context['matches'] = Match.objects.filter(
+        matches = Match.objects.filter(
             Q(team1_player1=player) | Q(team1_player2=player) | 
             Q(team2_player1=player) | Q(team2_player2=player)
         ).distinct().order_by('-date_played') # Ensure distinct matches and order by date
+        context['matches'] = matches
+        
+        # Generate ELO history data for chart
+        elo_history = self.generate_elo_history(player)
+        context['elo_history'] = elo_history
+        
         return context
+    
+    def generate_elo_history(self, player):
+        """Generate historical ELO progression for chart display"""
+        # Get all matches involving this player in chronological order
+        matches = Match.objects.filter(
+            Q(team1_player1=player) | Q(team1_player2=player) | 
+            Q(team2_player1=player) | Q(team2_player2=player)
+        ).distinct().order_by('date_played')
+        
+        elo_data = []
+        current_elo = 1000  # Starting ELO
+        
+        # Add starting point
+        if matches.exists():
+            first_match = matches.first()
+            # Get the ELO before the first match
+            if player == first_match.team1_player1:
+                current_elo = first_match.team1_player1_elo_before
+            elif player == first_match.team1_player2:
+                current_elo = first_match.team1_player2_elo_before
+            elif player == first_match.team2_player1:
+                current_elo = first_match.team2_player1_elo_before
+            elif player == first_match.team2_player2:
+                current_elo = first_match.team2_player2_elo_before
+            
+            # Add starting point (before first match)
+            elo_data.append({
+                'date': first_match.date_played.strftime('%Y-%m-%d'),
+                'elo': current_elo,
+                'match_id': None,
+                'is_starting_point': True
+            })
+        
+        # Process each match to build ELO progression
+        for match in matches:
+            # Determine if player won or lost and calculate ELO change
+            player_won = False
+            elo_before = current_elo
+            
+            if player in [match.team1_player1, match.team1_player2]:
+                # Player was in team 1
+                player_won = (match.result == match.MatchResult.TEAM1_WIN)
+                if player == match.team1_player1:
+                    elo_before = match.team1_player1_elo_before
+                else:
+                    elo_before = match.team1_player2_elo_before
+            else:
+                # Player was in team 2
+                player_won = (match.result == match.MatchResult.TEAM2_WIN)
+                if player == match.team2_player1:
+                    elo_before = match.team2_player1_elo_before
+                else:
+                    elo_before = match.team2_player2_elo_before
+            
+            # Calculate ELO after match
+            elo_change = match.elo_change if player_won else -match.elo_change
+            elo_after = elo_before + elo_change
+            
+            elo_data.append({
+                'date': match.date_played.strftime('%Y-%m-%d'),
+                'elo': elo_after,
+                'match_id': match.id,
+                'elo_change': elo_change,
+                'won': player_won,
+                'is_starting_point': False
+            })
+            
+            current_elo = elo_after
+        
+        return elo_data
 
 class PlayerCreateView(LoginRequiredMixin, CreateView):
     model = Player
@@ -111,11 +187,17 @@ class MatchDetailView(DetailView):
             context['alt_elo_change'] = abs(elo_delta_if_team1_won)
             context['alt_winner'] = 'team1'
         
+        # Add historical ELO snapshots for template display
         context.update({
             'team1_avg_elo': round(team1_avg_elo, 1),
             'team2_avg_elo': round(team2_avg_elo, 1),
             'team1_win_probability': round(expected_team1_win * 100, 1),
             'team2_win_probability': round(expected_team2_win * 100, 1),
+            # Historical ELO ratings (before the match)
+            'team1_player1_elo_before': match.team1_player1_elo_before,
+            'team1_player2_elo_before': match.team1_player2_elo_before,
+            'team2_player1_elo_before': match.team2_player1_elo_before,
+            'team2_player2_elo_before': match.team2_player2_elo_before,
         })
         
         return context
