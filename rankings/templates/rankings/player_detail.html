@@ -154,8 +154,14 @@
 document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('eloChart').getContext('2d');
     
-    // Prepare data from Django context
-    const eloHistory = {{ elo_history|safe }};
+    // Use the properly serialized JSON data to avoid JavaScript errors
+    const eloHistory = {{ elo_history_json|safe }};
+    
+    // Check if we have data
+    if (!eloHistory || eloHistory.length === 0) {
+        document.getElementById('eloChart').style.display = 'none';
+        return;
+    }
     
     // Extract labels (dates) and data points
     const labels = eloHistory.map(point => point.date);
@@ -219,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const point = eloHistory[context.dataIndex];
                             let label = 'ELO: ' + point.elo;
                             
-                            if (!point.is_starting_point) {
+                            if (!point.is_starting_point && point.elo_change !== null) {
                                 const change = point.elo_change > 0 ? '+' + point.elo_change : point.elo_change;
                                 const result = point.won ? 'Won' : 'Lost';
                                 label += '\nChange: ' + change + ' (' + result + ')';
@@ -270,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const point = eloHistory[dataIndex];
                     
                     // Navigate to match detail if it's not the starting point
-                    if (!point.is_starting_point && point.match_id) {
+                    if (!point.is_starting_point && point.match_id !== null) {
                         window.location.href = '/matches/' + point.match_id + '/';
                     }
                 }

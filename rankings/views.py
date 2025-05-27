@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import user_passes_test
 from django.utils.decorators import method_decorator
 from django.db import transaction
+import json
 
 from .models import Player, Match
 from .forms import PlayerForm, MatchForm # Assuming these forms are well-defined
@@ -51,6 +52,8 @@ class PlayerDetailView(DetailView):
         
         # Generate ELO history data for chart
         elo_history = self.generate_elo_history(player)
+        # Convert to JSON to prevent JavaScript errors with None values
+        context['elo_history_json'] = json.dumps(elo_history) if elo_history else json.dumps([])
         context['elo_history'] = elo_history
         
         return context
@@ -79,11 +82,13 @@ class PlayerDetailView(DetailView):
             elif player == first_match.team2_player2:
                 current_elo = first_match.team2_player2_elo_before
             
-            # Add starting point (before first match)
+            # Add starting point (before first match) - use null instead of None
             elo_data.append({
                 'date': first_match.date_played.strftime('%Y-%m-%d'),
                 'elo': current_elo,
-                'match_id': None,
+                'match_id': None,  # This will be converted to null in JSON
+                'elo_change': None,  # Add this to avoid undefined errors
+                'won': None,  # Add this to avoid undefined errors
                 'is_starting_point': True
             })
         
