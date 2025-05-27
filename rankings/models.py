@@ -30,6 +30,12 @@ class Match(models.Model):
     team2_score = models.IntegerField() # Scores must be explicitly provided
     date_played = models.DateTimeField(default=timezone.now)
     
+    # ELO snapshots before the match
+    team1_player1_elo_before = models.IntegerField(default=0)
+    team1_player2_elo_before = models.IntegerField(default=0)
+    team2_player1_elo_before = models.IntegerField(default=0)
+    team2_player2_elo_before = models.IntegerField(default=0)
+    
     class MatchResult(models.TextChoices):
         TEAM1_WIN = 'team1_win', 'Team 1 Win'
         TEAM2_WIN = 'team2_win', 'Team 2 Win'
@@ -57,6 +63,12 @@ class Match(models.Model):
         if len(players_in_match) != len(set(players_in_match)):
             raise ValidationError("All four players in a match must be distinct.")
 
+    def capture_elo_snapshots(self):
+        """Capture ELO ratings before the match is processed"""
+        self.team1_player1_elo_before = self.team1_player1.elo_rating
+        self.team1_player2_elo_before = self.team1_player2.elo_rating
+        self.team2_player1_elo_before = self.team2_player1.elo_rating
+        self.team2_player2_elo_before = self.team2_player2.elo_rating
 
     def save(self, *args, **kwargs):
         # Determine match result from scores before saving
@@ -74,6 +86,10 @@ class Match(models.Model):
         if is_new_match: # Or always, depending on desired strictness for updates too
              self.full_clean()
 
+        # Capture ELO snapshots before processing the match (only for new matches)
+        if is_new_match:
+            self.capture_elo_snapshots()
+
         super().save(*args, **kwargs)
 
         if is_new_match and not hasattr(self, '_stats_updated'):
@@ -87,8 +103,9 @@ class Match(models.Model):
         for player in players:
             player.matches_played += 1
         
-        team1_avg_elo = (self.team1_player1.elo_rating + self.team1_player2.elo_rating) / 2
-        team2_avg_elo = (self.team2_player1.elo_rating + self.team2_player2.elo_rating) / 2
+        # Use the captured ELO snapshots for calculation
+        team1_avg_elo = (self.team1_player1_elo_before + self.team1_player2_elo_before) / 2
+        team2_avg_elo = (self.team2_player1_elo_before + self.team2_player2_elo_before) / 2
         
         expected_team1 = 1 / (1 + 10 ** ((team2_avg_elo - team1_avg_elo) / 400))
         k_factor = 32

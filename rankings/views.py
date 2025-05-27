@@ -90,13 +90,11 @@ class MatchDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         match = self.get_object()
         
-        # Calculate ELO data at the time of the match
-        # Note: This is theoretical calculation based on current model
-        # For accurate historical data, you'd need to store ELO snapshots
-        team1_avg_elo = (match.team1_player1.elo_rating + match.team1_player2.elo_rating) / 2
-        team2_avg_elo = (match.team2_player1.elo_rating + match.team2_player2.elo_rating) / 2
+        # Use the stored ELO snapshots for accurate historical data
+        team1_avg_elo = (match.team1_player1_elo_before + match.team1_player2_elo_before) / 2
+        team2_avg_elo = (match.team2_player1_elo_before + match.team2_player2_elo_before) / 2
         
-        # Calculate win probability using ELO formula
+        # Calculate win probability using ELO formula with historical data
         expected_team1_win = 1 / (1 + 10 ** ((team2_avg_elo - team1_avg_elo) / 400))
         expected_team2_win = 1 - expected_team1_win
         
@@ -200,16 +198,36 @@ class EloRecomputeView(View):
                     matches_lost=0
                 )
                 
-                # Reset all match ELO changes
-                Match.objects.all().update(elo_change=0)
+                # Reset all match ELO changes and snapshots
+                Match.objects.all().update(
+                    elo_change=0,
+                    team1_player1_elo_before=0,
+                    team1_player2_elo_before=0,
+                    team2_player1_elo_before=0,
+                    team2_player2_elo_before=0
+                )
                 
                 # Process all matches in chronological order
                 matches = Match.objects.all().order_by('date_played')
                 
                 for match in matches:
-                    # Temporarily mark as not updated to allow stats recalculation
+                    # Refresh player data from database to get current ELO ratings
+                    match.team1_player1.refresh_from_db()
+                    match.team1_player2.refresh_from_db()
+                    match.team2_player1.refresh_from_db()
+                    match.team2_player2.refresh_from_db()
+                    
+                    # Capture ELO snapshots before processing this match
+                    match.capture_elo_snapshots()
+                    
+                    # Update player stats and save the match with snapshots
                     match._stats_updated = False
                     match.update_player_stats()
+                    
+                    # Save the match with updated snapshots and elo_change
+                    match.save(update_fields=['elo_change', 'team1_player1_elo_before', 
+                                            'team1_player2_elo_before', 'team2_player1_elo_before', 
+                                            'team2_player2_elo_before'])
                 
                 messages.success(request, f"ELO ratings have been recomputed successfully. Processed {matches.count()} matches.")
                 
