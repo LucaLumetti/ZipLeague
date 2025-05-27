@@ -3,7 +3,14 @@
 {% block title %}Rankings{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">Player Rankings</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Player Rankings</h1>
+    {% if user.is_superuser %}
+        <a href="{% url 'elo-recompute' %}" class="btn btn-warning">
+            <i class="bi bi-arrow-clockwise"></i> Recompute ELO
+        </a>
+    {% endif %}
+</div>
 
 <div class="card">
     <div class="card-header bg-primary text-white">

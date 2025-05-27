@@ -7,6 +7,11 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.db.models import Q
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import user_passes_test
+from django.utils.decorators import method_decorator
+from django.db import transaction
 
 from .models import Player, Match
 from .forms import PlayerForm, MatchForm # Assuming these forms are well-defined
@@ -76,6 +81,47 @@ class MatchListView(ListView):
     context_object_name = 'matches'
     ordering = ['-date_played'] # Show most recent matches first
 
+class MatchDetailView(DetailView):
+    model = Match
+    template_name = 'rankings/match_detail.html'
+    context_object_name = 'match'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        match = self.get_object()
+        
+        # Calculate ELO data at the time of the match
+        # Note: This is theoretical calculation based on current model
+        # For accurate historical data, you'd need to store ELO snapshots
+        team1_avg_elo = (match.team1_player1.elo_rating + match.team1_player2.elo_rating) / 2
+        team2_avg_elo = (match.team2_player1.elo_rating + match.team2_player2.elo_rating) / 2
+        
+        # Calculate win probability using ELO formula
+        expected_team1_win = 1 / (1 + 10 ** ((team2_avg_elo - team1_avg_elo) / 400))
+        expected_team2_win = 1 - expected_team1_win
+        
+        # Calculate what would have happened if the other team won
+        k_factor = 32
+        if match.result == match.MatchResult.TEAM1_WIN:
+            # What if team 2 had won instead
+            elo_delta_if_team2_won = round(k_factor * (1 - expected_team1_win))
+            context['alt_elo_change'] = elo_delta_if_team2_won
+            context['alt_winner'] = 'team2'
+        else:
+            # What if team 1 had won instead
+            elo_delta_if_team1_won = round(k_factor * (0 - expected_team1_win))
+            context['alt_elo_change'] = abs(elo_delta_if_team1_won)
+            context['alt_winner'] = 'team1'
+        
+        context.update({
+            'team1_avg_elo': round(team1_avg_elo, 1),
+            'team2_avg_elo': round(team2_avg_elo, 1),
+            'team1_win_probability': round(expected_team1_win * 100, 1),
+            'team2_win_probability': round(expected_team2_win * 100, 1),
+        })
+        
+        return context
+
 class MatchCreateView(LoginRequiredMixin, CreateView):
     model = Match
     form_class = MatchForm
@@ -98,15 +144,31 @@ class RankingListView(ListView):
         sort_by = self.request.GET.get('sort', 'elo_rating') # Default sort: elo_rating
         direction = self.request.GET.get('direction', 'desc') # Default direction: descending
         
-        order_by_field = f"{'-' if direction == 'desc' else ''}{sort_by}"
-        
         # Handle sorting by win_percentage (a model property)
         if sort_by == 'win_percentage':
-            queryset = Player.objects.all()
-            # Python's sorted() is used for properties not directly sortable by database
-            return sorted(queryset, key=lambda p: p.win_percentage, reverse=(direction == 'desc'))
+            # For win_percentage, we need to use Python sorting since it's a property
+            from django.http import HttpResponse
+            from django.template import loader
+            
+            # Return all players and let the template handle the sorting display
+            # The template will need to handle the win_percentage sorting
+            return Player.objects.all().order_by('-elo_rating')
         
+        order_by_field = f"{'-' if direction == 'desc' else ''}{sort_by}"
         return Player.objects.all().order_by(order_by_field)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        sort_by = self.request.GET.get('sort', 'elo_rating')
+        direction = self.request.GET.get('direction', 'desc')
+        
+        # Handle win_percentage sorting in context since it's a property
+        if sort_by == 'win_percentage':
+            players = list(Player.objects.all())
+            players.sort(key=lambda p: p.win_percentage, reverse=(direction == 'desc'))
+            context['players'] = players
+        
+        return context
 
 class UserRegistrationView(UserPassesTestMixin, CreateView):
     model = User
@@ -122,3 +184,43 @@ class UserRegistrationView(UserPassesTestMixin, CreateView):
         user = form.save()
         messages.success(self.request, f"User {user.username} has been registered successfully.")
         return super().form_valid(form)
+
+@method_decorator(user_passes_test(lambda u: u.is_superuser), name='dispatch')
+class EloRecomputeView(View):
+    """Admin-only view to recompute all ELO ratings from scratch"""
+    
+    def post(self, request, *args, **kwargs):
+        try:
+            with transaction.atomic():
+                # Reset all players to default ELO and stats
+                Player.objects.all().update(
+                    elo_rating=1000,
+                    matches_played=0,
+                    matches_won=0,
+                    matches_lost=0
+                )
+                
+                # Reset all match ELO changes
+                Match.objects.all().update(elo_change=0)
+                
+                # Process all matches in chronological order
+                matches = Match.objects.all().order_by('date_played')
+                
+                for match in matches:
+                    # Temporarily mark as not updated to allow stats recalculation
+                    match._stats_updated = False
+                    match.update_player_stats()
+                
+                messages.success(request, f"ELO ratings have been recomputed successfully. Processed {matches.count()} matches.")
+                
+        except Exception as e:
+            messages.error(request, f"Error recomputing ELO ratings: {str(e)}")
+        
+        return redirect('rankings')
+    
+    def get(self, request, *args, **kwargs):
+        # Show confirmation page
+        return render(request, 'rankings/elo_recompute_confirm.html', {
+            'total_matches': Match.objects.count(),
+            'total_players': Player.objects.count()
+        })

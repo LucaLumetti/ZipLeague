@@ -97,26 +97,26 @@ class Match(models.Model):
         elo_delta = round(k_factor * (actual_team1_score_val - expected_team1))
         self.elo_change = abs(elo_delta)
 
-        if self.result == self.MatchResult.TEAM1_WIN:
-            self.team1_player1.elo_rating += elo_delta
-            self.team1_player2.elo_rating += elo_delta
-            self.team2_player1.elo_rating -= elo_delta
-            self.team2_player2.elo_rating -= elo_delta
-            
-            self.team1_player1.matches_won += 1
-            self.team1_player2.matches_won += 1
-            self.team2_player1.matches_lost += 1
-            self.team2_player2.matches_lost += 1
-        else: # Team 2 Won
-            self.team1_player1.elo_rating -= elo_delta
-            self.team1_player2.elo_rating -= elo_delta
-            self.team2_player1.elo_rating += elo_delta
-            self.team2_player2.elo_rating += elo_delta
-
-            self.team1_player1.matches_lost += 1
-            self.team1_player2.matches_lost += 1
-            self.team2_player1.matches_won += 1
-            self.team2_player2.matches_won += 1
+        # Team 1 gets +/- elo_delta, Team 2 gets -/+ elo_delta
+        team1_multiplier = 1 if self.result == self.MatchResult.TEAM1_WIN else -1
+        self.team1_player1.elo_rating += team1_multiplier * abs(elo_delta)
+        self.team1_player2.elo_rating += team1_multiplier * abs(elo_delta)
+        self.team2_player1.elo_rating -= team1_multiplier * abs(elo_delta)
+        self.team2_player2.elo_rating -= team1_multiplier * abs(elo_delta)
+        
+        # Update win/loss records
+        team1_won = 1 if self.result == self.MatchResult.TEAM1_WIN else 0
+        team1_lost = 1 - team1_won
+        
+        self.team1_player1.matches_won += team1_won
+        self.team1_player2.matches_won += team1_won
+        self.team1_player1.matches_lost += team1_lost
+        self.team1_player2.matches_lost += team1_lost
+        
+        self.team2_player1.matches_won += team1_lost
+        self.team2_player2.matches_won += team1_lost
+        self.team2_player1.matches_lost += team1_won
+        self.team2_player2.matches_lost += team1_won
         
         for player in players:
             player.save()

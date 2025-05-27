@@ -62,11 +62,12 @@
                                     <th>Score</th>
                                     <th>Result</th>
                                     <th>ELO Change</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for match in matches %}
-                                    <tr>
+                                    <tr class="cursor-pointer" onclick="window.location='{% url 'match-detail' match.pk %}'">
                                         <td>{{ match.date_played|date:"M d, Y" }}</td>
                                         <td>
                                             <span {% if player == match.team1_player1 or player == match.team1_player2 %} class="text-primary fw-bold"{% endif %}>
@@ -108,6 +109,11 @@
                                                 {% endif %}
                                             {% endif %}
                                         </td>
+                                        <td>
+                                            <a href="{% url 'match-detail' match.pk %}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation()">
+                                                <i class="bi bi-eye"></i> Details
+                                            </a>
+                                        </td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -120,4 +126,10 @@
         </div>
     </div>
 </div>
+
+<style>
+.cursor-pointer {
+    cursor: pointer;
+}
+</style>
 {% endblock %}

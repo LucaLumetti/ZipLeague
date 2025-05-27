@@ -25,11 +25,12 @@
                             <th>Score</th>
                             <th>Winner</th>
                             <th>ELO Change</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for match in matches %}
-                            <tr>
+                            <tr class="cursor-pointer" onclick="window.location='{% url 'match-detail' match.pk %}'">
                                 <td>{{ match.date_played|date:"M d, Y" }}</td>
                                 <td>{{ match.team1_player1.name }} & {{ match.team1_player2.name }}</td>
                                 <td>{{ match.team2_player1.name }} & {{ match.team2_player2.name }}</td>
@@ -41,7 +42,12 @@
                                         <span class="badge bg-success">{{ match.team2_player1.name }} & {{ match.team2_player2.name }}</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ match.elo_change }}</td>
+                                <td>±{{ match.elo_change }}</td>
+                                <td>
+                                    <a href="{% url 'match-detail' match.pk %}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation()">
+                                        <i class="bi bi-eye"></i> View Details
+                                    </a>
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>

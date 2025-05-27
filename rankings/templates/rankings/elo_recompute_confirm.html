@@ -1,0 +1,104 @@
+{% extends 'rankings/base.html' %}
+
+{% block title %}Recompute ELO Ratings{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Recompute ELO Ratings</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <h5 class="alert-heading">⚠️ Warning!</h5>
+                        <p>This action will <strong>permanently reset all player ELO ratings</strong> to the default value (1000) and recalculate them by processing all matches in chronological order.</p>
+                        <hr>
+                        <p class="mb-0"><strong>This action cannot be undone!</strong></p>
+                    </div>
+
+                    <div class="row text-center mb-4">
+                        <div class="col-md-6">
+                            <div class="stat-card">
+                                <h3 class="text-primary">{{ total_players }}</h3>
+                                <p class="mb-0">Players will be reset</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="stat-card">
+                                <h3 class="text-info">{{ total_matches }}</h3>
+                                <p class="mb-0">Matches will be reprocessed</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>What will happen:</h5>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <i class="bi bi-arrow-clockwise text-warning me-2"></i>
+                                All player ELO ratings will be reset to 1000
+                            </li>
+                            <li class="list-group-item">
+                                <i class="bi bi-arrow-clockwise text-warning me-2"></i>
+                                All player match statistics will be reset (wins, losses, matches played)
+                            </li>
+                            <li class="list-group-item">
+                                <i class="bi bi-play-circle text-info me-2"></i>
+                                All {{ total_matches }} matches will be reprocessed in chronological order
+                            </li>
+                            <li class="list-group-item">
+                                <i class="bi bi-calculator text-success me-2"></i>
+                                ELO ratings will be recalculated using the current algorithm settings
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>When to use this feature:</h5>
+                        <ul class="text-muted">
+                            <li>When you've changed the K-factor or other ELO algorithm parameters</li>
+                            <li>When you want to apply algorithm improvements to historical data</li>
+                            <li>When there are inconsistencies in the current ratings</li>
+                            <li>After importing historical match data</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'rankings' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                        
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you absolutely sure you want to recompute all ELO ratings? This action cannot be undone!')">
+                                <i class="bi bi-arrow-clockwise"></i> Recompute ELO Ratings
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.stat-card {
+    padding: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    margin: 10px 0;
+}
+
+.list-group-item {
+    border: none;
+    padding: 10px 0;
+}
+
+.card {
+    border: none;
+}
+</style>
+{% endblock %}
