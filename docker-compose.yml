@@ -1,8 +1,7 @@
-version: '3.8'
-
 services:
   web:
     build: .
+    restart: always
     command: >
       sh -c "python manage.py collectstatic --no-input --clear && 
              gunicorn spikeball_ranking.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60"
@@ -11,17 +10,16 @@ services:
     volumes:
       - .:/app
     ports:
-      - "80:8000"
+      - "81:8000"
     depends_on:
       - db
   db:
     image: postgres:16
+    restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data/
-    environment:
-      - POSTGRES_DB=spikeball_ranking
-      - POSTGRES_USER=spikeball_user
-      - POSTGRES_PASSWORD=spikeball_password
+    env_file:
+      - .env
 
 volumes:
   postgres_data:
