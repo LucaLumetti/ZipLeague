@@ -47,9 +47,11 @@
                         {% endif %}
                         <div class="form-text">{{ form.password2.help_text }}</div>
                     </div>
-                    
-                    <div class="d-grid gap-2">
+                      <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-success">Register User</button>
+                        <a href="{% url 'create-registration-token' %}" class="btn btn-primary">
+                            <i class="fas fa-link"></i> Create Registration Link
+                        </a>
                         <a href="{% url 'home' %}" class="btn btn-secondary">Cancel</a>
                     </div>
                 </form>

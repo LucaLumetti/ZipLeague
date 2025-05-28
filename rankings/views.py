@@ -12,9 +12,10 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import user_passes_test
 from django.utils.decorators import method_decorator
 from django.db import transaction
+from django.utils import timezone
 import json
 
-from .models import Player, Match
+from .models import Player, Match, RegistrationToken
 from .forms import PlayerForm, MatchForm # Assuming these forms are well-defined
 
 class HomeView(ListView):
@@ -178,18 +179,17 @@ class MatchDetailView(DetailView):
         # Calculate win probability using ELO formula with historical data
         expected_team1_win = 1 / (1 + 10 ** ((team2_avg_elo - team1_avg_elo) / 400))
         expected_team2_win = 1 - expected_team1_win
-        
-        # Calculate what would have happened if the other team won
+          # Calculate what would have happened if the other team won
         k_factor = 32
         if match.result == match.MatchResult.TEAM1_WIN:
-            # What if team 2 had won instead
-            elo_delta_if_team2_won = round(k_factor * (1 - expected_team1_win))
-            context['alt_elo_change'] = elo_delta_if_team2_won
+            # What if team 2 had won instead (Team 1 gets actual_result = 0)
+            elo_delta_if_team2_won = round(k_factor * (0 - expected_team1_win))
+            context['alt_elo_change'] = abs(elo_delta_if_team2_won)  # Show positive value in template
             context['alt_winner'] = 'team2'
         else:
-            # What if team 1 had won instead
-            elo_delta_if_team1_won = round(k_factor * (0 - expected_team1_win))
-            context['alt_elo_change'] = abs(elo_delta_if_team1_won)
+            # What if team 1 had won instead (Team 1 gets actual_result = 1)
+            elo_delta_if_team1_won = round(k_factor * (1 - expected_team1_win))
+            context['alt_elo_change'] = elo_delta_if_team1_won
             context['alt_winner'] = 'team1'
         
         # Add historical ELO snapshots for template display
@@ -268,6 +268,77 @@ class UserRegistrationView(UserPassesTestMixin, CreateView):
     def form_valid(self, form):
         user = form.save()
         messages.success(self.request, f"User {user.username} has been registered successfully.")
+        return super().form_valid(form)
+
+class CreateRegistrationTokenView(UserPassesTestMixin, View):
+    """Admin-only view to create registration tokens"""
+    
+    def test_func(self):
+        return self.request.user.is_superuser
+    
+    def post(self, request, *args, **kwargs):
+        try:
+            token = RegistrationToken.objects.create(created_by=request.user)
+            registration_url = request.build_absolute_uri(
+                f"/register-with-token/{token.token}/"
+            )
+            messages.success(
+                request, 
+                f"Registration link created successfully! Share this link: {registration_url}"
+            )
+        except Exception as e:
+            messages.error(request, f"Error creating registration token: {str(e)}")
+        
+        return redirect('register')
+    
+    def get(self, request, *args, **kwargs):
+        # Show the create token page
+        active_tokens = RegistrationToken.objects.filter(
+            created_by=request.user,
+            is_used=False,
+            expires_at__gt=timezone.now()
+        ).order_by('-created_at')
+        
+        return render(request, 'registration/create_token.html', {
+            'active_tokens': active_tokens
+        })
+
+class TokenBasedRegistrationView(CreateView):
+    """Public view for registration using a token"""
+    model = User
+    form_class = UserCreationForm
+    template_name = 'registration/token_register.html'
+    success_url = reverse_lazy('home')
+    
+    def dispatch(self, request, *args, **kwargs):
+        self.token_uuid = kwargs.get('token')
+        try:
+            self.token = RegistrationToken.objects.get(token=self.token_uuid)
+        except RegistrationToken.DoesNotExist:
+            messages.error(request, "Invalid registration token.")
+            return redirect('home')
+        
+        if not self.token.is_valid:
+            if self.token.is_used:
+                messages.error(request, "This registration token has already been used.")
+            else:
+                messages.error(request, "This registration token has expired.")
+            return redirect('home')
+        
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['token'] = self.token
+        return context
+    
+    def form_valid(self, form):
+        user = form.save()
+        self.token.mark_as_used(user)
+        messages.success(
+            self.request, 
+            f"Welcome {user.username}! Your account has been created successfully."
+        )
         return super().form_valid(form)
 
 @method_decorator(user_passes_test(lambda u: u.is_superuser), name='dispatch')

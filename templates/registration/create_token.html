@@ -1,0 +1,94 @@
+{% extends 'rankings/base.html' %}
+
+{% block title %}Create Registration Token{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Create Registration Link</h4>
+            </div>
+            <div class="card-body">
+                <p class="mb-4">Create a single-use registration link that allows external users to register an account.</p>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-link"></i> Create Registration Link
+                        </button>
+                    </div>
+                </form>
+                
+                {% if active_tokens %}
+                <hr>
+                <h5>Active Registration Tokens</h5>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Created</th>
+                                <th>Expires</th>
+                                <th>Registration Link</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for token in active_tokens %}
+                            <tr>
+                                <td>{{ token.created_at|date:"M d, Y H:i" }}</td>
+                                <td>{{ token.expires_at|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" 
+                                               value="{{ request.build_absolute_uri }}/register-with-token/{{ token.token }}/" 
+                                               readonly id="token-{{ token.id }}">
+                                        <button class="btn btn-outline-secondary" type="button" 
+                                                onclick="copyToClipboard('token-{{ token.id }}')">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">Active</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <a href="{% url 'register' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Registration
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    element.select();
+    element.setSelectionRange(0, 99999); // For mobile devices
+    navigator.clipboard.writeText(element.value).then(function() {
+        // Show success feedback
+        const button = element.nextElementSibling;
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i>';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+        
+        setTimeout(function() {
+            button.innerHTML = originalHTML;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+    });
+}
+</script>
+{% endblock %}

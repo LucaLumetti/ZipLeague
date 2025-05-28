@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+import uuid
+from datetime import timedelta
 
 class Player(models.Model):
     name = models.CharField(max_length=100)
@@ -19,6 +21,40 @@ class Player(models.Model):
         if self.matches_played == 0:
             return 0
         return (self.matches_won / self.matches_played) * 100
+
+class RegistrationToken(models.Model):
+    """Model for single-use registration tokens created by admins"""
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    created_by = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='created_tokens')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    used_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='used_tokens')
+    used_at = models.DateTimeField(null=True, blank=True)
+    
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            # Default expiration: 7 days from creation
+            self.expires_at = timezone.now() + timedelta(days=7)
+        super().save(*args, **kwargs)
+    
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+    
+    @property
+    def is_valid(self):
+        return not self.is_used and not self.is_expired
+    
+    def mark_as_used(self, user):
+        """Mark the token as used by a specific user"""
+        self.is_used = True
+        self.used_by = user
+        self.used_at = timezone.now()
+        self.save()
+    
+    def __str__(self):
+        return f"Registration Token {self.token} (created by {self.created_by.username})"
 
 class Match(models.Model):
     team1_player1 = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='matches_as_team1_player1')

@@ -23,4 +23,8 @@ urlpatterns = [
     
     # User registration (admin only)
     path('register/', views.UserRegistrationView.as_view(), name='register'),
+    
+    # Registration token management (admin only)
+    path('create-registration-token/', views.CreateRegistrationTokenView.as_view(), name='create-registration-token'),
+    path('register-with-token/<uuid:token>/', views.TokenBasedRegistrationView.as_view(), name='token-registration'),
 ]
