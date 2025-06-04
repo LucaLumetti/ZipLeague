@@ -68,7 +68,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="matches_as_team1_player1",
-                        to="rankings.player",
+                        to="core.player",
                     ),
                 ),
                 (
@@ -76,7 +76,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="matches_as_team1_player2",
-                        to="rankings.player",
+                        to="core.player",
                     ),
                 ),
                 (
@@ -84,7 +84,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="matches_as_team2_player1",
-                        to="rankings.player",
+                        to="core.player",
                     ),
                 ),
                 (
@@ -92,7 +92,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="matches_as_team2_player2",
-                        to="rankings.player",
+                        to="core.player",
                     ),
                 ),
             ],

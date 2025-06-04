@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Deploy script for Spikeball Ranking application
+# Deploy script for ZipLeague application
 # This script performs: compose down, git pull, rebuild, up, makemigrations, migrate
 
 set -e  # Exit on any error
 
-echo "🏐 Starting Spikeball Ranking deployment..."
+echo "🚀 Starting ZipLeague deployment..."
 
 # Function to check if command was successful
 check_command() {

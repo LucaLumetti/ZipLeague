@@ -1,5 +1,5 @@
 """
-URL configuration for spikeball_ranking project.
+URL configuration for zip_league project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.2/topics/http/urls/
@@ -18,8 +18,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
-urlpatterns = [
-    path("admin/", admin.site.urls),
+urlpatterns = [    path("admin/", admin.site.urls),
     path("auth/", include("django.contrib.auth.urls")),
-    path("", include("rankings.urls")),
+    path("", include("core.urls")),
 ]

@@ -1,6 +1,6 @@
-# SpikeBall Ranking App
+# ZipLeague
 
-A Django application to track SpikeBall matches and player ELO rankings.
+A Django application to track 2v2 matches of any sport and rank players using ELO.
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ A Django application to track SpikeBall matches and player ELO rankings.
 1.  **Clone the Repository**:
     ```bash
     git clone <your-repository-url>
-    cd ZipRoundnetRanking
+    cd ZipLeague
     ```
 
 2.  **Configure Environment Variables**:
@@ -29,7 +29,7 @@ A Django application to track SpikeBall matches and player ELO rankings.
 
 3.  **Build the Docker Image**:
     ```bash
-    docker build -t spikeball-ranking-app .
+    docker build -t zipleague-app .
     ```
 
 4.  **Run the Application**:
@@ -44,8 +44,8 @@ A Django application to track SpikeBall matches and player ELO rankings.
         ```bash
         docker run -d -p 8000:8000 \
           --env-file .env \
-          --name spikeball-web \
-          spikeball-ranking-app
+          --name zipleague-web \
+          zipleague-app
         ```
 
 5.  **Database Migrations**:
@@ -57,7 +57,7 @@ A Django application to track SpikeBall matches and player ELO rankings.
         ```
     *   If using `docker run`:
         ```bash
-        docker exec -it spikeball-web python manage.py migrate
+        docker exec -it zipleague-web python manage.py migrate
         ```
 
 6.  **Create Superuser (Optional)**:
@@ -67,7 +67,7 @@ A Django application to track SpikeBall matches and player ELO rankings.
         ```
     *   If using `docker run`:
         ```bash
-        docker exec -it spikeball-web python manage.py createsuperuser
+        docker exec -it zipleague-web python manage.py createsuperuser
         ```
 
 7.  **Access the Application**:
@@ -75,8 +75,8 @@ A Django application to track SpikeBall matches and player ELO rankings.
 
 ## Project Structure
 
-*   `spikeball_ranking/`: Django project configuration.
-*   `rankings/`: Django app for rankings, matches, and players.
+*   `zip_league/`: Django project configuration.
+*   `core/`: Django app for rankings, matches, and players.
 *   `Dockerfile`: Defines the Docker image for the application.
 *   `docker-compose.yml`: Defines services for Docker Compose (web app and database).
 *   `requirements.txt`: Python dependencies.
