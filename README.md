@@ -37,7 +37,7 @@ A Django application to track 2v2 matches of any sport and rank players using EL
     *   **Using Docker Compose (Recommended)**:
         This will start the Django application and a PostgreSQL database.
         ```bash
-        docker-compose up -d --build
+        docker compose up -d --build
         ```
 
     *   **Using `docker run` (Standalone, if managing DB separately)**:
@@ -53,7 +53,7 @@ A Django application to track 2v2 matches of any sport and rank players using EL
 
     *   If using Docker Compose:
         ```bash
-        docker-compose exec web python manage.py migrate
+        docker compose exec web python manage.py migrate
         ```
     *   If using `docker run`:
         ```bash
@@ -63,7 +63,7 @@ A Django application to track 2v2 matches of any sport and rank players using EL
 6.  **Create Superuser (Optional)**:
     *   If using Docker Compose:
         ```bash
-        docker-compose exec web python manage.py createsuperuser
+        docker compose exec web python manage.py createsuperuser
         ```
     *   If using `docker run`:
         ```bash
@@ -78,7 +78,7 @@ A Django application to track 2v2 matches of any sport and rank players using EL
 *   `zip_league/`: Django project configuration.
 *   `core/`: Django app for rankings, matches, and players.
 *   `Dockerfile`: Defines the Docker image for the application.
-*   `docker-compose.yml`: Defines services for Docker Compose (web app and database).
+*   `docker compose.yml`: Defines services for Docker Compose (web app and database).
 *   `requirements.txt`: Python dependencies.
 *   `.env.example`: Template for environment variables.
 *   `.gitignore`: Specifies intentionally untracked files that Git should ignore.

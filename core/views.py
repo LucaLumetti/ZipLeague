@@ -388,7 +388,7 @@ class EloRecomputeView(View):
                                             'team2_player2_elo_before'])
                 
                 messages.success(request, f"ELO ratings have been recomputed successfully. Processed {matches.count()} matches.")
-                  except Exception as e:
+        except Exception as e:
             messages.error(request, f"Error recomputing ELO ratings: {str(e)}")
         
         return redirect('rankings')

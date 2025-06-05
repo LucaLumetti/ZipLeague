@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Remove collectstatic from here as it will be run in docker-compose command
+# Remove collectstatic from here as it will be run in docker compose command
 # RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
