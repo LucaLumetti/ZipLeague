@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZipLeague - {% block title %}Home{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
             padding-top: 60px;
@@ -21,6 +22,23 @@
         }
         .text-zipleague {
             color: #ffbf00;
+        }
+        .btn-outline-zipleague {
+            color: #ffbf00;
+            border-color: #ffbf00;
+        }
+        .btn-outline-zipleague:hover {
+            background-color: #ffbf00;
+            border-color: #ffbf00;
+            color: #000;
+        }
+        footer .btn:hover {
+            transform: translateY(-1px);
+            transition: all 0.2s ease;
+        }
+        footer a:hover {
+            color: #ffbf00 !important;
+            transition: color 0.2s ease;
         }
     </style>
     {% block extra_css %}{% endblock %}
@@ -93,16 +111,68 @@
         {% endif %}
 
         {% block content %}{% endblock %}
-    </div>    <footer class="bg-dark text-white py-4 mt-5">
+    </div>    <footer class="bg-dark text-white py-5 mt-5">
         <div class="container">
             <div class="row">
+                <div class="col-lg-8 col-md-8 mb-4">
+                    <h5 class="fw-bold mb-3">
+                        <i class="bi bi-trophy-fill text-zipleague me-2"></i>ZipLeague
+                    </h5>
+                    <p class="text-light mb-3">
+                        A simple but effective ranking system designed to track Spikeball matches and tournament results 
+                        within the <a href="https://aimagelab.ing.unimore.it/" target="_blank" rel="noopener noreferrer" 
+                           class="text-zipleague text-decoration-none fw-semibold">AImageLab</a> team at the 
+                        University of Modena and Reggio Emilia. Built with Django and powered by the ELO rating 
+                        system, ZipLeague brings competitive fun to our research group's recreational activities.
+                    </p>
+                </div>
+                
+                <div class="col-lg-4 col-md-4 mb-4">
+                    <h6 class="fw-bold mb-3">Resources</h6>
+                    <ul class="list-unstyled mb-3">
+                        <li class="mb-2">
+                            <a href="https://spikeball.ing.unimore.it" target="_blank" rel="noopener noreferrer" 
+                               class="text-light text-decoration-none">
+                                <i class="bi bi-play-circle me-2"></i>Live Demo
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="https://github.com/LucaLumetti/ZipLeague" target="_blank" rel="noopener noreferrer" 
+                               class="text-light text-decoration-none">
+                                <i class="bi bi-code-slash me-2"></i>Source Code
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="https://github.com/LucaLumetti/ZipLeague/issues" target="_blank" rel="noopener noreferrer" 
+                               class="text-light text-decoration-none">
+                                <i class="bi bi-bug me-2"></i>Report Issues
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="https://github.com/LucaLumetti/ZipLeague" target="_blank" rel="noopener noreferrer" 
+                               class="text-light text-decoration-none">
+                                <i class="bi bi-bug me-2"></i>Contribute
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <hr class="my-4 border-secondary">
+            
+            <div class="row align-items-center">
                 <div class="col-md-6">
-                    <h5>ZipLeague</h5>
-                    <p>Track your matches and see who's on top!</p>
+                    <p class="mb-2 mb-md-0 text-light">
+                        &copy; {% now "Y" %} ZipLeague. Open source software licensed under MIT.
+                    </p>
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <p>&copy; {% now "Y" %}. All rights reserved.</p>
-                    <p class="mb-0">Made by <a href="https://github.com/LucaLumetti" target="_blank" class="text-zipleague text-decoration-none">LucaLumetti</a></p>
+                    <p class="mb-0 text-light">
+                        <i class="bi bi-code-square me-1"></i>
+                        Made with <i class="bi bi-heart-fill text-danger mx-1"></i> by 
+                        <a href="https://github.com/LucaLumetti" target="_blank" rel="noopener noreferrer" 
+                           class="text-zipleague text-decoration-none fw-semibold">Luca Lumetti</a>
+                    </p>
                 </div>
             </div>
         </div>
