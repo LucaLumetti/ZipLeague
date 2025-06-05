@@ -90,19 +90,6 @@ Alternatively, you can use Docker:
 docker-compose up
 ```
 
-## Code of Conduct
-
-- Be respectful and inclusive
-- Focus on constructive feedback
-- Help others learn and grow
-- Maintain a professional tone in all interactions
-
-## Questions?
-
-If you have questions about contributing, feel free to:
-- Open an issue with the "question" label
-- Contact the maintainer: [Luca Lumetti](https://github.com/LucaLumetti)
-
 ## License
 
 By contributing to ZipLeague, you agree that your contributions will be licensed under the MIT License.
