@@ -1,5 +1,5 @@
 """
-WSGI config for spikeball_ranking project.
+WSGI config for zip_league project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "spikeball_ranking.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "zip_league.settings")
 
 application = get_wsgi_application()

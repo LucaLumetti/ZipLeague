@@ -3,14 +3,14 @@
 # Set variables
 BACKUP_DIR="/home/llumetti/backups"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-DB_BACKUP_FILE="$BACKUP_DIR/spikeball_db_$TIMESTAMP.sql"
-MEDIA_BACKUP_FILE="$BACKUP_DIR/spikeball_media_$TIMESTAMP.tar.gz"
+DB_BACKUP_FILE="$BACKUP_DIR/zip_league_db_$TIMESTAMP.sql"
+MEDIA_BACKUP_FILE="$BACKUP_DIR/zip_league_media_$TIMESTAMP.tar.gz"
 
 # Ensure backup directory exists
 mkdir -p $BACKUP_DIR
 
 # Go to the project directory
-cd /home/llumetti/SpikeballRanking
+cd /home/llumetti/ZipLeague
 
 # Get database credentials from .env file
 DB_NAME=$(grep DB_NAME .env | cut -d '=' -f2 | tr -d "'" | tr -d '"')
@@ -34,7 +34,7 @@ echo "Database backup compressed: ${DB_BACKUP_FILE}.gz"
 
 # Back up media files
 echo "Starting media files backup..."
-tar -czf $MEDIA_BACKUP_FILE -C /home/llumetti/SpikeballRanking media
+tar -czf $MEDIA_BACKUP_FILE -C /home/llumetti/ZipLeague media
 if [ $? -eq 0 ]; then
     echo "Media files backup successful: $MEDIA_BACKUP_FILE"
 else
@@ -42,8 +42,8 @@ else
 fi
 
 # Keep only the last 5 backups (increased retention period)
-find $BACKUP_DIR -name "spikeball_db_*.sql.gz" -type f -mtime +5 -delete
-find $BACKUP_DIR -name "spikeball_media_*.tar.gz" -type f -mtime +5 -delete
+find $BACKUP_DIR -name "zipleague_db_*.sql.gz" -type f -mtime +5 -delete
+find $BACKUP_DIR -name "zipleague_media_*.tar.gz" -type f -mtime +5 -delete
 
 echo "Backup completed at $(date)"
 echo "Database: ${DB_BACKUP_FILE}.gz"

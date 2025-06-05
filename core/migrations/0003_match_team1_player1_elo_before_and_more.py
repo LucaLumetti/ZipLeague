@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('rankings', '0002_alter_match_result_alter_match_team1_score_and_more'),
+        ('core', '0002_alter_match_result_alter_match_team1_score_and_more'),
     ]
 
     operations = [

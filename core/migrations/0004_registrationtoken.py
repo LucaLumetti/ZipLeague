@@ -9,7 +9,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('rankings', '0003_match_team1_player1_elo_before_and_more'),
+        ('core', '0003_match_team1_player1_elo_before_and_more'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

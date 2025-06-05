@@ -20,7 +20,7 @@ from .forms import PlayerForm, MatchForm # Assuming these forms are well-defined
 
 class HomeView(ListView):
     model = Player
-    template_name = 'rankings/home.html'
+    template_name = 'core/home.html'
     context_object_name = 'players'
     ordering = ['-elo_rating'] # Show top players on home page
     
@@ -32,13 +32,13 @@ class HomeView(ListView):
 
 class PlayerListView(ListView):
     model = Player
-    template_name = 'rankings/player_list.html'
+    template_name = 'core/player_list.html'
     context_object_name = 'players'
     ordering = ['-elo_rating'] # Default sort by ELO rating
 
 class PlayerDetailView(DetailView):
     model = Player
-    template_name = 'rankings/player_detail.html'
+    template_name = 'core/player_detail.html'
     context_object_name = 'player'
     
     def get_context_data(self, **kwargs):
@@ -134,7 +134,7 @@ class PlayerDetailView(DetailView):
 class PlayerCreateView(LoginRequiredMixin, CreateView):
     model = Player
     form_class = PlayerForm
-    template_name = 'rankings/player_form.html'
+    template_name = 'core/player_form.html'
     success_url = reverse_lazy('player-list') # Redirect to player list after creation
     
     def form_valid(self, form):
@@ -144,7 +144,7 @@ class PlayerCreateView(LoginRequiredMixin, CreateView):
 class PlayerUpdateView(LoginRequiredMixin, UpdateView):
     model = Player
     form_class = PlayerForm
-    template_name = 'rankings/player_form.html'
+    template_name = 'core/player_form.html'
     # success_url is dynamically set in get_success_url
 
     def get_success_url(self):
@@ -159,13 +159,13 @@ class PlayerUpdateView(LoginRequiredMixin, UpdateView):
 
 class MatchListView(ListView):
     model = Match
-    template_name = 'rankings/match_list.html'
+    template_name = 'core/match_list.html'
     context_object_name = 'matches'
     ordering = ['-date_played'] # Show most recent matches first
 
 class MatchDetailView(DetailView):
     model = Match
-    template_name = 'rankings/match_detail.html'
+    template_name = 'core/match_detail.html'
     context_object_name = 'match'
     
     def get_context_data(self, **kwargs):
@@ -210,7 +210,7 @@ class MatchDetailView(DetailView):
 class MatchCreateView(LoginRequiredMixin, CreateView):
     model = Match
     form_class = MatchForm
-    template_name = 'rankings/match_form.html'
+    template_name = 'core/match_form.html'
     success_url = reverse_lazy('match-list') # Redirect to match list after creation
     
     def form_valid(self, form):
@@ -222,7 +222,7 @@ class MatchCreateView(LoginRequiredMixin, CreateView):
 
 class RankingListView(ListView):
     model = Player
-    template_name = 'rankings/ranking_list.html' # Template to display player rankings
+    template_name = 'core/ranking_list.html' # Template to display player rankings
     context_object_name = 'players'
     
     def get_queryset(self):
@@ -388,7 +388,6 @@ class EloRecomputeView(View):
                                             'team2_player2_elo_before'])
                 
                 messages.success(request, f"ELO ratings have been recomputed successfully. Processed {matches.count()} matches.")
-                
         except Exception as e:
             messages.error(request, f"Error recomputing ELO ratings: {str(e)}")
         
@@ -396,7 +395,7 @@ class EloRecomputeView(View):
     
     def get(self, request, *args, **kwargs):
         # Show confirmation page
-        return render(request, 'rankings/elo_recompute_confirm.html', {
+        return render(request, 'core/elo_recompute_confirm.html', {
             'total_matches': Match.objects.count(),
             'total_players': Player.objects.count()
         })
