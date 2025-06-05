@@ -106,3 +106,43 @@ If you have questions about contributing, feel free to:
 ## License
 
 By contributing to ZipLeague, you agree that your contributions will be licensed under the MIT License.
+
+## TODO - Upcoming Features
+
+This section outlines planned features and improvements that contributors can work on.
+
+### 🔄 **User-Player Integration**
+
+**Current Issue**: Users (Django auth) and Players are completely separate entities. Registered users are treated as admins, while Players are just data objects for match tracking.
+
+**Goal**: Merge User and Player models so registered users become players automatically, with proper permission management. When someone creates an account, they should automatically become a player in the league with appropriate permissions to participate in matches. Need to decide how to handle the registration of a user without them taking any action (e.g., a player plays just once, and forgot to register. An admin can register them, and the user can later set a password somehow, maybe using the forgot password).
+
+### 🔐 **Forgot Password System**
+
+**Current Issue**: No password reset functionality in login system.
+
+**Goal**: Add a "Forgot Password?" link to the login page that allows users to reset their password via email. This should integrate with Django's built-in password reset functionality.
+
+### 👤 **User Profile Images**
+
+**Goal**: Allow users to upload and display profile images. Player detail pages and lists should show these images, with fallback avatars (showing initials or a default image) when no profile picture is uploaded. Images should be properly validated and resized for consistency.
+
+### 🏆 **Tournament System**
+
+**Current Issue**: Only basic match tracking exists. No way to organize matches into tournaments or track tournament-specific statistics.
+
+**Goal**: Create a comprehensive tournament system that allows:
+- Admins to create tournaments with different formats (single elimination, double elimination, round robin, etc.)
+- Players to register for tournaments
+- Automatic bracket generation and match scheduling
+- Tournament-specific statistics and leaderboards
+- Tournament progress tracking and results
+
+### 🔧 **Additional Improvements**
+
+- **API Development**: Add REST API endpoints
+- **Real-time Features**: Live match updates and notifications using WebSockets
+- **Analytics Dashboard**: Player performance analytics and data visualization
+- **Enhanced Testing**: Increase test coverage and add integration tests
+
+---
