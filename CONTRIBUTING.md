@@ -87,7 +87,7 @@ For local development without Docker, ensure you have PostgreSQL installed and c
 Alternatively, you can use Docker:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
 ## License
