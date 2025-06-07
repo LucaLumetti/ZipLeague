@@ -13,6 +13,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.utils.decorators import method_decorator
 from django.db import transaction
 from django.utils import timezone
+from datetime import timedelta
 import json
 
 from .models import Player, Match, RegistrationToken
@@ -28,7 +29,96 @@ class HomeView(ListView):
         context = super().get_context_data(**kwargs)
         # Add recent matches to context for home page display
         context['recent_matches'] = Match.objects.order_by('-date_played')[:5]
+        
+        # Calculate hot ranking based on last month's performance
+        context['hot_players'] = self.get_hot_ranking()
+        
         return context
+    
+    def get_hot_ranking(self):
+        """Calculate hot ranking based on last 30 matches or last month, whichever gives more matches"""
+        # Get date from one month ago
+        one_month_ago = timezone.now() - timedelta(days=30)
+        
+        players_hot_data = []
+        
+        for player in Player.objects.all():
+            # Get all matches involving this player in the last month
+            recent_matches = Match.objects.filter(
+                Q(team1_player1=player) | Q(team1_player2=player) | 
+                Q(team2_player1=player) | Q(team2_player2=player),
+                date_played__gte=one_month_ago
+            ).distinct().order_by('-date_played')
+            
+            # If less than 30 matches in last month, get the most recent 30 matches
+            # if recent_matches.count() < 30:
+            #     all_matches = Match.objects.filter(
+            #         Q(team1_player1=player) | Q(team1_player2=player) | 
+            #         Q(team2_player1=player) | Q(team2_player2=player)
+            #     ).distinct().order_by('-date_played')[:30]
+            #     recent_matches = all_matches
+            # else:
+            if recent_matches.count() > 30:
+                # Limit to 30 most recent matches within the month
+                recent_matches = recent_matches[:30]
+            
+            # Calculate hot ELO rating
+            hot_elo = self.calculate_hot_elo(player, recent_matches)
+            
+            # Count wins and losses in the considered period
+            wins = 0
+            losses = 0
+            
+            for match in recent_matches:
+                if player in [match.team1_player1, match.team1_player2]:
+                    # Player was in team 1
+                    if match.result == match.MatchResult.TEAM1_WIN:
+                        wins += 1
+                    else:
+                        losses += 1
+                else:
+                    # Player was in team 2
+                    if match.result == match.MatchResult.TEAM2_WIN:
+                        wins += 1
+                    else:
+                        losses += 1
+            
+            players_hot_data.append({
+                'player': player,
+                'hot_elo': hot_elo,
+                'recent_wins': wins,
+                'recent_losses': losses,
+                'recent_matches_count': recent_matches.count()
+            })
+        
+        # Sort by hot_elo descending
+        players_hot_data.sort(key=lambda x: x['hot_elo'], reverse=True)
+        
+        return players_hot_data
+    
+    def calculate_hot_elo(self, player, matches):
+        """Calculate hot ELO starting from 1000 and applying only the changes from recent matches"""
+        hot_elo = 1000  # Starting point
+        
+        for match in matches:
+            # Determine if player won or lost and get ELO change
+            player_won = False
+            elo_change = 0
+            
+            if player in [match.team1_player1, match.team1_player2]:
+                # Player was in team 1
+                player_won = (match.result == match.MatchResult.TEAM1_WIN)
+            else:
+                # Player was in team 2  
+                player_won = (match.result == match.MatchResult.TEAM2_WIN)
+            
+            # Apply ELO change (positive if won, negative if lost)
+            if player_won:
+                hot_elo += match.elo_change
+            else:
+                hot_elo -= match.elo_change
+        
+        return round(hot_elo)
 
 class PlayerListView(ListView):
     model = Player

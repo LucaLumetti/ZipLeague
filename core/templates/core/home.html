@@ -19,7 +19,7 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Top Players</h5>
+                <h5 class="mb-0">Top Players - Complete Ranking</h5>
             </div>
             <div class="card-body">
                 {% if players %}
@@ -46,6 +46,51 @@
                         </table>
                     </div>
                     <a href="{% url 'player-list' %}" class="btn btn-primary btn-sm">View All Rankings</a>
+                {% else %}
+                    <p class="text-muted">No players yet. <a href="{% url 'player-create' %}">Add some players</a> to get started!</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- New Hot Ranking Table -->
+        <div class="card mt-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">Top Players - Hot Ranking 🔥</h5>
+                <small class="text-muted">Based on performance in last 30 matches/month</small>
+            </div>
+            <div class="card-body">
+                {% if hot_players %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Player</th>
+                                    <th>Hot ELO</th>
+                                    <th>Recent W/L</th>
+                                    <th>Matches</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for player_data in hot_players|slice:":5" %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td><a href="{% url 'player-detail' player_data.player.id %}">{{ player_data.player.name }}</a></td>
+                                        <td>
+                                            <span class="fw-bold {% if player_data.hot_elo > 1000 %}text-success{% elif player_data.hot_elo < 1000 %}text-danger{% endif %}">
+                                                {{ player_data.hot_elo }}
+                                            </span>
+                                        </td>
+                                        <td>{{ player_data.recent_wins }}/{{ player_data.recent_losses }}</td>
+                                        <td>
+                                            <small class="text-muted">{{ player_data.recent_matches_count }}</small>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <a href="{% url 'player-list' %}" class="btn btn-warning btn-sm">View All Rankings</a>
                 {% else %}
                     <p class="text-muted">No players yet. <a href="{% url 'player-create' %}">Add some players</a> to get started!</p>
                 {% endif %}
