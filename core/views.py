@@ -22,10 +22,13 @@ class HomeView(ListView):
     model = Player
     template_name = 'core/home.html'
     context_object_name = 'players'
-    ordering = ['-elo_rating'] # Show top players on home page
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        # Order by TrueSkill score for home page
+        players = list(Player.objects.all())
+        players.sort(key=lambda p: p.trueskill_score, reverse=True)
+        context['players'] = players[:10]  # Show top 10 players on home page
         # Add recent matches to context for home page display
         context['recent_matches'] = Match.objects.order_by('-date_played')[:5]
         return context
@@ -34,7 +37,14 @@ class PlayerListView(ListView):
     model = Player
     template_name = 'core/player_list.html'
     context_object_name = 'players'
-    ordering = ['-elo_rating'] # Default sort by ELO rating
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Order by TrueSkill score by default
+        players = list(Player.objects.all())
+        players.sort(key=lambda p: p.trueskill_score, reverse=True)
+        context['players'] = players
+        return context
 
 class PlayerDetailView(DetailView):
     model = Player
@@ -217,7 +227,7 @@ class MatchCreateView(LoginRequiredMixin, CreateView):
         # The Match model's save() method handles ELO calculation and player stat updates.
         # MatchForm should validate that a player is not selected more than once.
         response = super().form_valid(form)
-        messages.success(self.request, "Match recorded successfully and ELO ratings updated.")
+        messages.success(self.request, "Match recorded successfully and ELO & TrueSkill ratings updated.")
         return response
 
 class RankingListView(ListView):
@@ -226,33 +236,34 @@ class RankingListView(ListView):
     context_object_name = 'players'
     
     def get_queryset(self):
-        sort_by = self.request.GET.get('sort', 'elo_rating') # Default sort: elo_rating
+        sort_by = self.request.GET.get('sort', 'trueskill_score') # Default sort: trueskill_score
         direction = self.request.GET.get('direction', 'desc') # Default direction: descending
         
-        # Handle sorting by win_percentage (a model property)
-        if sort_by == 'win_percentage':
-            # For win_percentage, we need to use Python sorting since it's a property
-            from django.http import HttpResponse
-            from django.template import loader
-            
-            # Return all players and let the template handle the sorting display
-            # The template will need to handle the win_percentage sorting
-            return Player.objects.all().order_by('-elo_rating')
+        # Handle sorting by properties (win_percentage, trueskill_score)
+        if sort_by in ['win_percentage', 'trueskill_score']:
+            # For properties, we need to use Python sorting since they're computed properties
+            return Player.objects.all()
         
         order_by_field = f"{'-' if direction == 'desc' else ''}{sort_by}"
         return Player.objects.all().order_by(order_by_field)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        sort_by = self.request.GET.get('sort', 'elo_rating')
+        sort_by = self.request.GET.get('sort', 'trueskill_score')
         direction = self.request.GET.get('direction', 'desc')
         
-        # Handle win_percentage sorting in context since it's a property
+        # Handle property-based sorting in context
         if sort_by == 'win_percentage':
             players = list(Player.objects.all())
             players.sort(key=lambda p: p.win_percentage, reverse=(direction == 'desc'))
             context['players'] = players
+        elif sort_by == 'trueskill_score':
+            players = list(Player.objects.all())
+            players.sort(key=lambda p: p.trueskill_score, reverse=(direction == 'desc'))
+            context['players'] = players
         
+        context['current_sort'] = sort_by
+        context['current_direction'] = direction
         return context
 
 class UserRegistrationView(UserPassesTestMixin, CreateView):
@@ -348,9 +359,11 @@ class EloRecomputeView(View):
     def post(self, request, *args, **kwargs):
         try:
             with transaction.atomic():
-                # Reset all players to default ELO and stats
+                # Reset all players to default ELO, TrueSkill, and stats
                 Player.objects.all().update(
                     elo_rating=1000,
+                    trueskill_mu=25.0,
+                    trueskill_sigma=25.0/3,
                     matches_played=0,
                     matches_won=0,
                     matches_lost=0
@@ -362,7 +375,15 @@ class EloRecomputeView(View):
                     team1_player1_elo_before=0,
                     team1_player2_elo_before=0,
                     team2_player1_elo_before=0,
-                    team2_player2_elo_before=0
+                    team2_player2_elo_before=0,
+                    team1_player1_trueskill_mu_before=25.0,
+                    team1_player1_trueskill_sigma_before=25.0/3,
+                    team1_player2_trueskill_mu_before=25.0,
+                    team1_player2_trueskill_sigma_before=25.0/3,
+                    team2_player1_trueskill_mu_before=25.0,
+                    team2_player1_trueskill_sigma_before=25.0/3,
+                    team2_player2_trueskill_mu_before=25.0,
+                    team2_player2_trueskill_sigma_before=25.0/3,
                 )
                 
                 # Process all matches in chronological order
@@ -385,11 +406,15 @@ class EloRecomputeView(View):
                     # Save the match with updated snapshots and elo_change
                     match.save(update_fields=['elo_change', 'team1_player1_elo_before', 
                                             'team1_player2_elo_before', 'team2_player1_elo_before', 
-                                            'team2_player2_elo_before'])
+                                            'team2_player2_elo_before', 'team1_player1_trueskill_mu_before',
+                                            'team1_player1_trueskill_sigma_before', 'team1_player2_trueskill_mu_before',
+                                            'team1_player2_trueskill_sigma_before', 'team2_player1_trueskill_mu_before',
+                                            'team2_player1_trueskill_sigma_before', 'team2_player2_trueskill_mu_before',
+                                            'team2_player2_trueskill_sigma_before'])
                 
-                messages.success(request, f"ELO ratings have been recomputed successfully. Processed {matches.count()} matches.")
+                messages.success(request, f"ELO and TrueSkill ratings have been recomputed successfully. Processed {matches.count()} matches.")
         except Exception as e:
-            messages.error(request, f"Error recomputing ELO ratings: {str(e)}")
+            messages.error(request, f"Error recomputing ELO and TrueSkill ratings: {str(e)}")
         
         return redirect('rankings')
     

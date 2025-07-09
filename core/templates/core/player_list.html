@@ -20,6 +20,7 @@
                     <thead>
                         <tr>
                             <th>Name</th>
+                            <th>TrueSkill</th>
                             <th>ELO Rating</th>
                             <th>Win/Loss</th>
                             <th>Win %</th>
@@ -30,6 +31,7 @@
                         {% for player in players %}
                             <tr>
                                 <td>{{ player.name }}</td>
+                                <td>{{ player.trueskill_score|floatformat:1 }}</td>
                                 <td>{{ player.elo_rating }}</td>
                                 <td>{{ player.matches_won }}/{{ player.matches_lost }}</td>
                                 <td>{{ player.win_percentage|floatformat:1 }}%</td>

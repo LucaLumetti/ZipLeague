@@ -3,11 +3,15 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 import uuid
 from datetime import timedelta
+from trueskill import Rating, rate
 
 class Player(models.Model):
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     elo_rating = models.IntegerField(default=1000) # Initial ELO
+    # TrueSkill fields - using default values (mu=25, sigma=25/3)
+    trueskill_mu = models.FloatField(default=25.0)  # TrueSkill mean (skill estimate)
+    trueskill_sigma = models.FloatField(default=25.0/3)  # TrueSkill standard deviation (uncertainty)
     matches_played = models.IntegerField(default=0)
     matches_won = models.IntegerField(default=0)
     matches_lost = models.IntegerField(default=0)
@@ -21,6 +25,16 @@ class Player(models.Model):
         if self.matches_played == 0:
             return 0
         return (self.matches_won / self.matches_played) * 100
+    
+    @property
+    def trueskill_rating(self):
+        """Returns TrueSkill rating as a Rating object"""
+        return Rating(mu=self.trueskill_mu, sigma=self.trueskill_sigma)
+    
+    @property
+    def trueskill_score(self):
+        """Returns conservative skill estimate (mu - 3*sigma) for ranking purposes"""
+        return self.trueskill_mu - (3 * self.trueskill_sigma)
 
 class RegistrationToken(models.Model):
     """Model for single-use registration tokens created by admins"""
@@ -72,6 +86,16 @@ class Match(models.Model):
     team2_player1_elo_before = models.IntegerField(default=0)
     team2_player2_elo_before = models.IntegerField(default=0)
     
+    # TrueSkill snapshots before the match
+    team1_player1_trueskill_mu_before = models.FloatField(default=25.0)
+    team1_player1_trueskill_sigma_before = models.FloatField(default=25.0/3)
+    team1_player2_trueskill_mu_before = models.FloatField(default=25.0)
+    team1_player2_trueskill_sigma_before = models.FloatField(default=25.0/3)
+    team2_player1_trueskill_mu_before = models.FloatField(default=25.0)
+    team2_player1_trueskill_sigma_before = models.FloatField(default=25.0/3)
+    team2_player2_trueskill_mu_before = models.FloatField(default=25.0)
+    team2_player2_trueskill_sigma_before = models.FloatField(default=25.0/3)
+    
     class MatchResult(models.TextChoices):
         TEAM1_WIN = 'team1_win', 'Team 1 Win'
         TEAM2_WIN = 'team2_win', 'Team 2 Win'
@@ -100,11 +124,21 @@ class Match(models.Model):
             raise ValidationError("All four players in a match must be distinct.")
 
     def capture_elo_snapshots(self):
-        """Capture ELO ratings before the match is processed"""
+        """Capture ELO and TrueSkill ratings before the match is processed"""
         self.team1_player1_elo_before = self.team1_player1.elo_rating
         self.team1_player2_elo_before = self.team1_player2.elo_rating
         self.team2_player1_elo_before = self.team2_player1.elo_rating
         self.team2_player2_elo_before = self.team2_player2.elo_rating
+        
+        # Capture TrueSkill snapshots
+        self.team1_player1_trueskill_mu_before = self.team1_player1.trueskill_mu
+        self.team1_player1_trueskill_sigma_before = self.team1_player1.trueskill_sigma
+        self.team1_player2_trueskill_mu_before = self.team1_player2.trueskill_mu
+        self.team1_player2_trueskill_sigma_before = self.team1_player2.trueskill_sigma
+        self.team2_player1_trueskill_mu_before = self.team2_player1.trueskill_mu
+        self.team2_player1_trueskill_sigma_before = self.team2_player1.trueskill_sigma
+        self.team2_player2_trueskill_mu_before = self.team2_player2.trueskill_mu
+        self.team2_player2_trueskill_sigma_before = self.team2_player2.trueskill_sigma
 
     def save(self, *args, **kwargs):
         # Determine match result from scores before saving
@@ -133,7 +167,7 @@ class Match(models.Model):
             self._stats_updated = True
     
     def update_player_stats(self):
-        """Updates player ELO ratings and win/loss records after a match."""
+        """Updates player ELO ratings, TrueSkill ratings and win/loss records after a match."""
         players = [self.team1_player1, self.team1_player2, self.team2_player1, self.team2_player2]
         
         for player in players:
@@ -156,6 +190,35 @@ class Match(models.Model):
         self.team1_player2.elo_rating += team1_multiplier * abs(elo_delta)
         self.team2_player1.elo_rating -= team1_multiplier * abs(elo_delta)
         self.team2_player2.elo_rating -= team1_multiplier * abs(elo_delta)
+        
+        # Update TrueSkill ratings
+        # Create TrueSkill Rating objects from the captured snapshots
+        team1_rating1 = Rating(mu=self.team1_player1_trueskill_mu_before, sigma=self.team1_player1_trueskill_sigma_before)
+        team1_rating2 = Rating(mu=self.team1_player2_trueskill_mu_before, sigma=self.team1_player2_trueskill_sigma_before)
+        team2_rating1 = Rating(mu=self.team2_player1_trueskill_mu_before, sigma=self.team2_player1_trueskill_sigma_before)
+        team2_rating2 = Rating(mu=self.team2_player2_trueskill_mu_before, sigma=self.team2_player2_trueskill_sigma_before)
+        
+        # Calculate new TrueSkill ratings based on match result
+        if self.result == self.MatchResult.TEAM1_WIN:
+            # Team 1 won
+            (new_team1_rating1, new_team1_rating2), (new_team2_rating1, new_team2_rating2) = rate(
+                [(team1_rating1, team1_rating2), (team2_rating1, team2_rating2)], ranks=[0, 1]
+            )
+        else:
+            # Team 2 won
+            (new_team1_rating1, new_team1_rating2), (new_team2_rating1, new_team2_rating2) = rate(
+                [(team1_rating1, team1_rating2), (team2_rating1, team2_rating2)], ranks=[1, 0]
+            )
+        
+        # Update player TrueSkill ratings
+        self.team1_player1.trueskill_mu = new_team1_rating1.mu
+        self.team1_player1.trueskill_sigma = new_team1_rating1.sigma
+        self.team1_player2.trueskill_mu = new_team1_rating2.mu
+        self.team1_player2.trueskill_sigma = new_team1_rating2.sigma
+        self.team2_player1.trueskill_mu = new_team2_rating1.mu
+        self.team2_player1.trueskill_sigma = new_team2_rating1.sigma
+        self.team2_player2.trueskill_mu = new_team2_rating2.mu
+        self.team2_player2.trueskill_sigma = new_team2_rating2.sigma
         
         # Update win/loss records
         team1_won = 1 if self.result == self.MatchResult.TEAM1_WIN else 0

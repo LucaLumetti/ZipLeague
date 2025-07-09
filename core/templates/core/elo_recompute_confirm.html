@@ -1,6 +1,6 @@
 {% extends 'core/base.html' %}
 
-{% block title %}Recompute ELO Ratings{% endblock %}
+{% block title %}Recompute Ratings{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -8,12 +8,12 @@
         <div class="col-md-8">
             <div class="card shadow">
                 <div class="card-header bg-warning text-dark">
-                    <h4 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Recompute ELO Ratings</h4>
+                    <h4 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Recompute All Ratings</h4>
                 </div>
                 <div class="card-body">
                     <div class="alert alert-warning" role="alert">
                         <h5 class="alert-heading">⚠️ Warning!</h5>
-                        <p>This action will <strong>permanently reset all player ELO ratings</strong> to the default value (1000) and recalculate them by processing all matches in chronological order.</p>
+                        <p>This action will <strong>permanently reset all player ELO and TrueSkill ratings</strong> to their default values and recalculate them by processing all matches in chronological order.</p>
                         <hr>
                         <p class="mb-0"><strong>This action cannot be undone!</strong></p>
                     </div>
@@ -39,6 +39,10 @@
                             <li class="list-group-item">
                                 <i class="bi bi-arrow-clockwise text-warning me-2"></i>
                                 All player ELO ratings will be reset to 1000
+                            </li>
+                            <li class="list-group-item">
+                                <i class="bi bi-arrow-clockwise text-warning me-2"></i>
+                                All player TrueSkill ratings will be reset to default values (mu=25, sigma=8.33)
                             </li>
                             <li class="list-group-item">
                                 <i class="bi bi-arrow-clockwise text-warning me-2"></i>
@@ -72,8 +76,8 @@
                         
                         <form method="post" class="d-inline">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you absolutely sure you want to recompute all ELO ratings? This action cannot be undone!')">
-                                <i class="bi bi-arrow-clockwise"></i> Recompute ELO Ratings
+                            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you absolutely sure you want to recompute all ratings? This action cannot be undone!')">
+                                <i class="bi bi-arrow-clockwise"></i> Recompute All Ratings
                             </button>
                         </form>
                     </div>

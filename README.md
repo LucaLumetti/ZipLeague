@@ -1,16 +1,17 @@
 # ZipLeague
 
-A simple but effective ranking system designed to track Spikeball matches and tournament results within the <a href="https://aimagelab.ing.unimore.it/" target="_blank" rel="noopener noreferrer" class="text-zipleague text-decoration-none fw-semibold">AImageLab</a> team at the University of Modena and Reggio Emilia. Built with Django and powered by the ELO rating system, ZipLeague brings competitive fun to our research group's recreational activities.
+A simple but effective ranking system designed to track Spikeball matches and tournament results within the <a href="https://aimagelab.ing.unimore.it/" target="_blank" rel="noopener noreferrer" class="text-zipleague text-decoration-none fw-semibold">AImageLab</a> team at the University of Modena and Reggio Emilia. Built with Django and powered by both TrueSkill and ELO rating systems, ZipLeague brings competitive fun to our research group's recreational activities.
 
 ## Features
 
-- **Player Management**: Create and manage player profiles with ELO ratings
-- **Match Tracking**: Record 2v2 matches with automatic ELO calculations
-- **Live Rankings**: Real-time player rankings based on ELO ratings
-- **Match History**: Detailed match records with scores and ELO changes
+- **Player Management**: Create and manage player profiles with both TrueSkill and ELO ratings
+- **Match Tracking**: Record 2v2 matches with automatic TrueSkill and ELO calculations
+- **Live Rankings**: Real-time player rankings based on TrueSkill ratings (with ELO as secondary)
+- **Match History**: Detailed match records with scores and rating changes
 - **Admin Dashboard**: Complete administrative interface for league management
 - **Token-based Registration**: Secure user registration system with invitation tokens
-- **ELO Recomputation**: Admin tool to recalculate all ELO ratings from scratch
+- **Rating Recomputation**: Admin tool to recalculate all ratings from scratch
+- **Dual Rating Systems**: TrueSkill for accuracy, ELO for familiarity
 
 ## Quick Start
 

@@ -18,6 +18,10 @@
                 
                 <table class="table">
                     <tr>
+                        <th>TrueSkill Score:</th>
+                        <td>{{ player.trueskill_score|floatformat:1 }}</td>
+                    </tr>
+                    <tr>
                         <th>ELO Rating:</th>
                         <td>{{ player.elo_rating }}</td>
                     </tr>

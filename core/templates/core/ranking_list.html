@@ -7,7 +7,7 @@
     <h1 class="mb-0">Player Rankings</h1>
     {% if user.is_superuser %}
         <a href="{% url 'elo-recompute' %}" class="btn btn-warning">
-            <i class="bi bi-arrow-clockwise"></i> Recompute ELO
+            <i class="bi bi-arrow-clockwise"></i> Recompute Ratings
         </a>
     {% endif %}
 </div>
@@ -19,7 +19,8 @@
             <div>
                 <span class="text-light">Sort by:</span>
                 <div class="btn-group">
-                    <a href="{% url 'rankings' %}?sort=elo_rating&direction=desc" class="btn btn-sm {% if request.GET.sort == 'elo_rating' or not request.GET.sort %}btn-light{% else %}btn-outline-light{% endif %}">ELO</a>
+                    <a href="{% url 'rankings' %}?sort=trueskill_score&direction=desc" class="btn btn-sm {% if request.GET.sort == 'trueskill_score' or not request.GET.sort %}btn-light{% else %}btn-outline-light{% endif %}">TrueSkill</a>
+                    <a href="{% url 'rankings' %}?sort=elo_rating&direction=desc" class="btn btn-sm {% if request.GET.sort == 'elo_rating' %}btn-light{% else %}btn-outline-light{% endif %}">ELO</a>
                     <a href="{% url 'rankings' %}?sort=matches_won&direction=desc" class="btn btn-sm {% if request.GET.sort == 'matches_won' %}btn-light{% else %}btn-outline-light{% endif %}">Wins</a>
                     <a href="{% url 'rankings' %}?sort=matches_played&direction=desc" class="btn btn-sm {% if request.GET.sort == 'matches_played' %}btn-light{% else %}btn-outline-light{% endif %}">Matches</a>
                     <a href="{% url 'rankings' %}?sort=win_percentage&direction=desc" class="btn btn-sm {% if request.GET.sort == 'win_percentage' %}btn-light{% else %}btn-outline-light{% endif %}">Win %</a>
@@ -35,6 +36,7 @@
                         <tr>
                             <th>Rank</th>
                             <th>Player</th>
+                            <th>TrueSkill</th>
                             <th>ELO Rating</th>
                             <th>Matches</th>
                             <th>Win/Loss</th>
@@ -48,6 +50,7 @@
                                 <td>
                                     <a href="{% url 'player-detail' player.id %}">{{ player.name }}</a>
                                 </td>
+                                <td>{{ player.trueskill_score|floatformat:1 }}</td>
                                 <td>{{ player.elo_rating }}</td>
                                 <td>{{ player.matches_played }}</td>
                                 <td>{{ player.matches_won }}/{{ player.matches_lost }}</td>
@@ -66,21 +69,43 @@
 </div>
 
 <div class="mt-4">
-    <div class="card">
-        <div class="card-header bg-dark text-white">
-            <h5 class="mb-0">About ELO Rating System</h5>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">About TrueSkill Rating System</h5>
+                </div>
+                <div class="card-body">
+                    <p>The rankings primarily use the TrueSkill rating system developed by Microsoft Research. Here's how it works:</p>
+                    <ul>
+                        <li>Every player starts with a skill estimate (mu) of 25 and uncertainty (sigma) of 8.33.</li>
+                        <li>TrueSkill uses Bayesian inference to estimate true skill levels.</li>
+                        <li>The ranking score is calculated as mu - 3*sigma (conservative estimate).</li>
+                        <li>As players play more matches, uncertainty decreases and ratings become more accurate.</li>
+                        <li>TrueSkill handles team games and varying match qualities better than ELO.</li>
+                    </ul>
+                    <p>This creates a sophisticated ranking system that accurately reflects player skill!</p>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <p>The rankings uses the ELO rating system to calculate player skill levels. Here's how it works:</p>
-            <ul>
-                <li>Every player starts with a rating of 1000.</li>
-                <li>After each match, points are transferred from the losing team to the winning team.</li>
-                <li>The amount of points transferred depends on the expected outcome - upsets result in bigger point swings.</li>
-                <li>Teams with higher ratings are expected to win against teams with lower ratings.</li>
-                <li>When a higher-rated team beats a lower-rated team, they gain fewer points.</li>
-                <li>When a lower-rated team beats a higher-rated team, they gain more points.</li>
-            </ul>
-            <p>This creates a fair and accurate ranking system that reflects player skill!</p>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">About ELO Rating System</h5>
+                </div>
+                <div class="card-body">
+                    <p>We also maintain ELO ratings for comparison. Here's how it works:</p>
+                    <ul>
+                        <li>Every player starts with a rating of 1000.</li>
+                        <li>After each match, points are transferred from the losing team to the winning team.</li>
+                        <li>The amount of points transferred depends on the expected outcome - upsets result in bigger point swings.</li>
+                        <li>Teams with higher ratings are expected to win against teams with lower ratings.</li>
+                        <li>When a higher-rated team beats a lower-rated team, they gain fewer points.</li>
+                        <li>When a lower-rated team beats a higher-rated team, they gain more points.</li>
+                    </ul>
+                    <p>ELO provides a simpler, more traditional ranking approach.</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>

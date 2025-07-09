@@ -3,10 +3,14 @@ from .models import Player, Match, RegistrationToken
 
 @admin.register(Player)
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'elo_rating', 'matches_played', 'matches_won', 'matches_lost', 'win_percentage')
+    list_display = ('name', 'get_trueskill_score', 'elo_rating', 'matches_played', 'matches_won', 'matches_lost', 'win_percentage')
     search_fields = ('name', 'email')
     list_filter = ('created_at',)
-    ordering = ('-elo_rating',)
+    ordering = ('-elo_rating',)  # Use elo_rating for ordering since trueskill_score is a property
+    
+    def get_trueskill_score(self, obj):
+        return round(obj.trueskill_score, 1)
+    get_trueskill_score.short_description = 'TrueSkill Score'
 
 @admin.register(Match)
 class MatchAdmin(admin.ModelAdmin):
