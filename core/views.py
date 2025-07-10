@@ -55,91 +55,138 @@ class PlayerDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         player = self.get_object()
         # Fetch all matches involving this player for their detail page
-        matches = Match.objects.filter(
-            Q(team1_player1=player) | Q(team1_player2=player) | 
+        matches_qs = Match.objects.filter(
+            Q(team1_player1=player) | Q(team1_player2=player) |
             Q(team2_player1=player) | Q(team2_player2=player)
-        ).distinct().order_by('-date_played') # Ensure distinct matches and order by date
-        context['matches'] = matches
+        ).distinct().order_by('-date_played')  # Ensure distinct matches and order by date
         
-        # Generate ELO history data for chart
-        elo_history = self.generate_elo_history(player)
+        # We need to annotate matches with trueskill changes.
+        matches_with_trueskill = self.annotate_matches_with_trueskill_change(matches_qs, player)
+        context['matches'] = matches_with_trueskill
+
+        # Generate TrueSkill history data for chart
+        trueskill_history = self.generate_trueskill_history(player)
         # Convert to JSON to prevent JavaScript errors with None values
-        context['elo_history_json'] = json.dumps(elo_history) if elo_history else json.dumps([])
-        context['elo_history'] = elo_history
-        
+        context['trueskill_history_json'] = json.dumps(trueskill_history) if trueskill_history else json.dumps([])
+        context['trueskill_history'] = trueskill_history
+
         return context
-    
-    def generate_elo_history(self, player):
-        """Generate historical ELO progression for chart display"""
+
+    def annotate_matches_with_trueskill_change(self, matches, player):
+        """
+        Annotates each match with the TrueSkill score change for the given player.
+        This is complex because a player's TrueSkill score depends on all previous matches.
+        """
+        
+        # Get all matches in chronological order to calculate historical TrueSkill
+        all_matches_chrono = list(matches.order_by('date_played'))
+        
+        if not all_matches_chrono:
+            return []
+
+        # Create a map of match.id to the calculated change
+        trueskill_change_map = {}
+
+        # Function to get mu and sigma before a match
+        def get_before_ratings(match, player_obj):
+            if player_obj == match.team1_player1:
+                return match.team1_player1_trueskill_mu_before, match.team1_player1_trueskill_sigma_before
+            elif player_obj == match.team1_player2:
+                return match.team1_player2_trueskill_mu_before, match.team1_player2_trueskill_sigma_before
+            elif player_obj == match.team2_player1:
+                return match.team2_player1_trueskill_mu_before, match.team2_player1_trueskill_sigma_before
+            elif player_obj == match.team2_player2:
+                return match.team2_player2_trueskill_mu_before, match.team2_player2_trueskill_sigma_before
+            return None, None
+
+        for i, match in enumerate(all_matches_chrono):
+            mu_before, sigma_before = get_before_ratings(match, player)
+            
+            mu_after, sigma_after = (None, None)
+            if i + 1 < len(all_matches_chrono):
+                next_match = all_matches_chrono[i+1]
+                mu_after, sigma_after = get_before_ratings(next_match, player)
+            else:
+                # For the last match, the "after" is the player's current TrueSkill
+                mu_after, sigma_after = player.trueskill_mu, player.trueskill_sigma
+
+            if mu_before is not None and sigma_before is not None and mu_after is not None and sigma_after is not None:
+                score_before = mu_before - 3 * sigma_before
+                score_after = mu_after - 3 * sigma_after
+                change = score_after - score_before
+                trueskill_change_map[match.id] = change
+
+        # Annotate the original (desc ordered) match list
+        annotated_matches = []
+        for match in matches:
+            match.trueskill_change = trueskill_change_map.get(match.id)
+            annotated_matches.append(match)
+            
+        return annotated_matches
+
+    def generate_trueskill_history(self, player):
+        """Generate historical TrueSkill progression for chart display"""
         # Get all matches involving this player in chronological order
         matches = Match.objects.filter(
             Q(team1_player1=player) | Q(team1_player2=player) | 
             Q(team2_player1=player) | Q(team2_player2=player)
         ).distinct().order_by('date_played')
         
-        elo_data = []
-        current_elo = 1000  # Starting ELO
-        
-        # Add starting point
-        if matches.exists():
-            first_match = matches.first()
-            # Get the ELO before the first match
-            if player == first_match.team1_player1:
-                current_elo = first_match.team1_player1_elo_before
-            elif player == first_match.team1_player2:
-                current_elo = first_match.team1_player2_elo_before
-            elif player == first_match.team2_player1:
-                current_elo = first_match.team2_player1_elo_before
-            elif player == first_match.team2_player2:
-                current_elo = first_match.team2_player2_elo_before
-            
-            # Add starting point (before first match) - use null instead of None
-            elo_data.append({
-                'date': first_match.date_played.strftime('%Y-%m-%d'),
-                'elo': current_elo,
-                'match_id': None,  # This will be converted to null in JSON
-                'elo_change': None,  # Add this to avoid undefined errors
-                'won': None,  # Add this to avoid undefined errors
-                'is_starting_point': True
-            })
-        
-        # Process each match to build ELO progression
-        for match in matches:
-            # Determine if player won or lost and calculate ELO change
-            player_won = False
-            elo_before = current_elo
-            
-            if player in [match.team1_player1, match.team1_player2]:
-                # Player was in team 1
-                player_won = (match.result == match.MatchResult.TEAM1_WIN)
-                if player == match.team1_player1:
-                    elo_before = match.team1_player1_elo_before
-                else:
-                    elo_before = match.team1_player2_elo_before
+        if not matches.exists():
+            return []
+
+        history = []
+
+        def get_before_ratings(match, player_obj):
+            if player_obj == match.team1_player1:
+                return match.team1_player1_trueskill_mu_before, match.team1_player1_trueskill_sigma_before
+            elif player_obj == match.team1_player2:
+                return match.team1_player2_trueskill_mu_before, match.team1_player2_trueskill_sigma_before
+            elif player_obj == match.team2_player1:
+                return match.team2_player1_trueskill_mu_before, match.team2_player1_trueskill_sigma_before
+            elif player_obj == match.team2_player2:
+                return match.team2_player2_trueskill_mu_before, match.team2_player2_trueskill_sigma_before
+            return None, None
+
+        # Add starting point from the first match
+        first_match = matches.first()
+        start_mu, start_sigma = get_before_ratings(first_match, player)
+
+        # The very first point in history is the state *before* the first match.
+        history.append({
+            'date': first_match.date_played.strftime('%Y-%m-%d'),
+            'mu': start_mu,
+            'sigma': start_sigma,
+            'match_id': None,
+            'won': None,
+            'is_starting_point': True
+        })
+
+        # Process each match to build TrueSkill progression
+        for i, match in enumerate(matches):
+            mu_after, sigma_after = (None, None)
+            if i + 1 < len(matches):
+                next_match = matches[i+1]
+                mu_after, sigma_after = get_before_ratings(next_match, player)
             else:
-                # Player was in team 2
-                player_won = (match.result == match.MatchResult.TEAM2_WIN)
-                if player == match.team2_player1:
-                    elo_before = match.team2_player1_elo_before
-                else:
-                    elo_before = match.team2_player2_elo_before
-            
-            # Calculate ELO after match
-            elo_change = match.elo_change if player_won else -match.elo_change
-            elo_after = elo_before + elo_change
-            
-            elo_data.append({
+                mu_after, sigma_after = player.trueskill_mu, player.trueskill_sigma
+
+            player_won = (
+                (player in [match.team1_player1, match.team1_player2] and match.result == 'team1_win') or
+                (player in [match.team2_player1, match.team2_player2] and match.result == 'team2_win')
+            )
+
+            history.append({
                 'date': match.date_played.strftime('%Y-%m-%d'),
-                'elo': elo_after,
+                'mu': mu_after,
+                'sigma': sigma_after,
                 'match_id': match.id,
-                'elo_change': elo_change,
                 'won': player_won,
                 'is_starting_point': False
             })
-            
-            current_elo = elo_after
-        
-        return elo_data
+
+        return history
+
 
 class PlayerCreateView(LoginRequiredMixin, CreateView):
     model = Player

@@ -51,18 +51,18 @@
     </div>
     
     <div class="col-md-8">
-        <!-- ELO History Chart -->
-        {% if elo_history %}
+        <!-- TrueSkill History Chart -->
+        {% if trueskill_history %}
         <div class="card mb-4">
             <div class="card-header bg-info text-white">
-                <h4 class="mb-0"><i class="bi bi-graph-up"></i> ELO History</h4>
+                <h4 class="mb-0"><i class="bi bi-graph-up"></i> TrueSkill History</h4>
             </div>
             <div class="card-body">
-                <canvas id="eloChart" width="400" height="200"></canvas>
+                <canvas id="trueskillChart" width="400" height="200"></canvas>
             </div>
         </div>
         {% endif %}
-        
+
         <!-- Match History Table -->
         <div class="card">
             <div class="card-header bg-success text-white">
@@ -78,7 +78,7 @@
                                     <th>Teams</th>
                                     <th>Score</th>
                                     <th>Result</th>
-                                    <th>ELO Change</th>
+                                    <th>TrueSkill Change</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -112,18 +112,18 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            {% if match.result == 'team1_win' %}
-                                                {% if player == match.team1_player1 or player == match.team1_player2 %}
-                                                    <span class="text-success">+{{ match.elo_change }}</span>
+                                            {% if match.trueskill_change is not None %}
+                                                {% if match.trueskill_change > 0 %}
+                                                    <span class="text-success">
+                                                        +{{ match.trueskill_change|floatformat:2 }}
+                                                    </span>
                                                 {% else %}
-                                                    <span class="text-danger">-{{ match.elo_change }}</span>
+                                                    <span class="text-danger">
+                                                        {{ match.trueskill_change|floatformat:2 }}
+                                                    </span>
                                                 {% endif %}
                                             {% else %}
-                                                {% if player == match.team2_player1 or player == match.team2_player2 %}
-                                                    <span class="text-success">+{{ match.elo_change }}</span>
-                                                {% else %}
-                                                    <span class="text-danger">-{{ match.elo_change }}</span>
-                                                {% endif %}
+                                                <span class="text-muted">N/A</span>
                                             {% endif %}
                                         </td>
                                         <td>
@@ -152,136 +152,112 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if elo_history %}
+{% if trueskill_history %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('eloChart').getContext('2d');
-    
-    // Use the properly serialized JSON data to avoid JavaScript errors
-    const eloHistory = {{ elo_history_json|safe }};
-    
-    // Check if we have data
-    if (!eloHistory || eloHistory.length === 0) {
-        document.getElementById('eloChart').style.display = 'none';
+    const ctx = document.getElementById('trueskillChart').getContext('2d');
+    const historyData = {{ trueskill_history_json|safe }};
+
+    if (!historyData || historyData.length === 0) {
+        document.getElementById('trueskillChart').style.display = 'none';
         return;
     }
-    
-    // Extract labels (dates) and data points
-    const labels = eloHistory.map(point => point.date);
-    const dataPoints = eloHistory.map(point => point.elo);
-    
-    // Create point colors based on win/loss
-    const pointColors = eloHistory.map(point => {
-        if (point.is_starting_point) return '#6c757d'; // Gray for starting point
-        return point.won ? '#28a745' : '#dc3545'; // Green for wins, red for losses
+
+    const labels = historyData.map(p => p.date);
+    const muData = historyData.map(p => p.mu);
+    const sigmaData = historyData.map(p => p.sigma);
+
+    const upperBand = muData.map((mu, i) => mu + sigmaData[i]);
+    const lowerBand = muData.map((mu, i) => mu - sigmaData[i]);
+
+    const pointColors = historyData.map(p => {
+        if (p.is_starting_point) return '#6c757d';
+        return p.won ? '#28a745' : '#dc3545';
     });
-    
-    // Create point radius - larger for wins/losses, smaller for starting point
-    const pointRadius = eloHistory.map(point => {
-        return point.is_starting_point ? 3 : 5;
-    });
-    
+
     const chart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [{
-                label: 'ELO Rating',
-                data: dataPoints,
-                borderColor: '#007bff',
-                backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                borderWidth: 2,
-                pointBackgroundColor: pointColors,
-                pointBorderColor: pointColors,
-                pointRadius: pointRadius,
-                pointHoverRadius: 8,
-                tension: 0.1,
-                fill: true
-            }]
+            datasets: [
+                {
+                    label: 'μ (Skill Estimate)',
+                    data: muData,
+                    borderColor: '#007bff',
+                    borderWidth: 2,
+                    pointBackgroundColor: pointColors,
+                    pointRadius: 5,
+                    fill: false,
+                    tension: 0.1
+                },
+                {
+                    label: 'σ (Uncertainty)',
+                    data: upperBand,
+                    fill: 0, // Fill to the 'μ' dataset
+                    backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                    borderColor: 'transparent',
+                    pointRadius: 0,
+                    tension: 0.4
+                },
+                {
+                    label: 'Lower Bound',
+                    data: lowerBand,
+                    fill: 0,
+                    backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                    borderColor: 'transparent',
+                    pointRadius: 0,
+                    tension: 0.4
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            },
             plugins: {
                 title: {
                     display: true,
-                    text: '{{ player.name }} - ELO Rating History',
-                    font: {
-                        size: 16,
-                        weight: 'bold'
-                    }
+                    text: '{{ player.name }} - TrueSkill History',
+                    font: { size: 16, weight: 'bold' }
                 },
                 legend: {
                     display: false
                 },
                 tooltip: {
-                    callbacks: {
-                        title: function(context) {
-                            const point = eloHistory[context[0].dataIndex];
-                            return 'Date: ' + point.date;
-                        },
-                        label: function(context) {
-                            const point = eloHistory[context.dataIndex];
-                            let label = 'ELO: ' + point.elo;
-                            
-                            if (!point.is_starting_point && point.elo_change !== null) {
-                                const change = point.elo_change > 0 ? '+' + point.elo_change : point.elo_change;
-                                const result = point.won ? 'Won' : 'Lost';
-                                label += '\nChange: ' + change + ' (' + result + ')';
-                            } else {
-                                label += '\n(Starting ELO)';
-                            }
-                            
-                            return label;
-                        }
-                    },
                     mode: 'index',
                     intersect: false,
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    borderColor: '#007bff',
-                    borderWidth: 1
+                    callbacks: {
+                        label: function(context) {
+                            const point = historyData[context.dataIndex];
+                            if (context.datasetIndex === 0) {
+                                let label = `μ: ${point.mu.toFixed(2)} (Skill)`;
+                                if (!point.is_starting_point) {
+                                    label += `\nResult: ${point.won ? 'Won' : 'Lost'}`;
+                                }
+                                return label;
+                            }
+                            if (context.datasetIndex === 1) {
+                                return `σ: ${point.sigma.toFixed(2)} (Uncertainty)`;
+                            }
+                            return null;
+                        }
+                    }
                 }
             },
             scales: {
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Match Date'
-                    },
-                    grid: {
-                        display: true,
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
-                },
                 y: {
                     title: {
                         display: true,
-                        text: 'ELO Rating'
-                    },
-                    grid: {
-                        display: true,
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    },
-                    beginAtZero: false,
-                    suggestedMin: Math.min(...dataPoints) - 50,
-                    suggestedMax: Math.max(...dataPoints) + 50
+                        text: 'TrueSkill Rating'
+                    }
                 }
             },
             onClick: function(event, elements) {
                 if (elements.length > 0) {
                     const dataIndex = elements[0].index;
-                    const point = eloHistory[dataIndex];
-                    
-                    // Navigate to match detail if it's not the starting point
-                    if (!point.is_starting_point && point.match_id !== null) {
-                        window.location.href = '/matches/' + point.match_id + '/';
+                    const point = historyData[dataIndex];
+                    if (!point.is_starting_point && point.match_id) {
+                        window.location.href = `/matches/${point.match_id}/`;
                     }
                 }
             }
