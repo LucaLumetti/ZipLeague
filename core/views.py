@@ -108,7 +108,7 @@ class PlayerDetailView(DetailView):
                 mu_after, sigma_after = get_before_ratings(next_match, player)
             else:
                 # For the last match, the "after" is the player's current TrueSkill
-                mu_after, sigma_after = player.trueskill_mu, player.trueskill_sigma
+                mu_after, sigma_after = player.trueskill_mu, player.effective_trueskill_sigma
 
             if mu_before is not None and sigma_before is not None and mu_after is not None and sigma_after is not None:
                 score_before = mu_before - 3 * sigma_before
@@ -169,7 +169,7 @@ class PlayerDetailView(DetailView):
                 next_match = matches[i+1]
                 mu_after, sigma_after = get_before_ratings(next_match, player)
             else:
-                mu_after, sigma_after = player.trueskill_mu, player.trueskill_sigma
+                mu_after, sigma_after = player.trueskill_mu, player.effective_trueskill_sigma
 
             player_won = (
                 (player in [match.team1_player1, match.team1_player2] and match.result == 'team1_win') or
@@ -413,7 +413,8 @@ class EloRecomputeView(View):
                     trueskill_sigma=25.0/3,
                     matches_played=0,
                     matches_won=0,
-                    matches_lost=0
+                    matches_lost=0,
+                    last_match_date=None
                 )
                 
                 # Reset all match ELO changes and snapshots

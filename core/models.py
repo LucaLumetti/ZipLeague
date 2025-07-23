@@ -17,6 +17,7 @@ class Player(models.Model):
     matches_won = models.IntegerField(default=0)
     matches_lost = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+    last_match_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -28,14 +29,33 @@ class Player(models.Model):
         return (self.matches_won / self.matches_played) * 100
     
     @property
+    def effective_trueskill_sigma(self):
+        """Returns the current effective TrueSkill sigma with decay applied for inactivity"""
+        if self.last_match_date is None:
+            return self.trueskill_sigma
+
+        days_inactive = (timezone.now() - self.last_match_date).days
+        
+        if days_inactive < 7:
+            return self.trueskill_sigma
+        
+        # Apply decay for each day after day 6
+        default_sigma = trueskill.setup().sigma
+        days_of_decay = days_inactive - 6
+        decay_factor = 0.9 ** days_of_decay
+        decayed_sigma = self.trueskill_sigma * decay_factor + default_sigma * (1 - decay_factor)
+        
+        return decayed_sigma
+    
+    @property
     def trueskill_rating(self):
-        """Returns TrueSkill rating as a Rating object"""
-        return trueskill.Rating(mu=self.trueskill_mu, sigma=self.trueskill_sigma)
+        """Returns TrueSkill rating as a Rating object with decayed sigma"""
+        return trueskill.Rating(mu=self.trueskill_mu, sigma=self.effective_trueskill_sigma)
     
     @property
     def trueskill_score(self):
-        """Returns conservative skill estimate (mu - 3*sigma) for ranking purposes"""
-        return self.trueskill_mu - (3 * self.trueskill_sigma)
+        """Returns conservative skill estimate (mu - 3*sigma) for ranking purposes with decayed sigma"""
+        return self.trueskill_mu - (3 * self.effective_trueskill_sigma)
 
 class RegistrationToken(models.Model):
     """Model for single-use registration tokens created by admins"""
@@ -131,15 +151,15 @@ class Match(models.Model):
         self.team2_player1_elo_before = self.team2_player1.elo_rating
         self.team2_player2_elo_before = self.team2_player2.elo_rating
         
-        # Capture TrueSkill snapshots
+        # Capture TrueSkill snapshots using effective sigma (with decay)
         self.team1_player1_trueskill_mu_before = self.team1_player1.trueskill_mu
-        self.team1_player1_trueskill_sigma_before = self.team1_player1.trueskill_sigma
+        self.team1_player1_trueskill_sigma_before = self.team1_player1.effective_trueskill_sigma
         self.team1_player2_trueskill_mu_before = self.team1_player2.trueskill_mu
-        self.team1_player2_trueskill_sigma_before = self.team1_player2.trueskill_sigma
+        self.team1_player2_trueskill_sigma_before = self.team1_player2.effective_trueskill_sigma
         self.team2_player1_trueskill_mu_before = self.team2_player1.trueskill_mu
-        self.team2_player1_trueskill_sigma_before = self.team2_player1.trueskill_sigma
+        self.team2_player1_trueskill_sigma_before = self.team2_player1.effective_trueskill_sigma
         self.team2_player2_trueskill_mu_before = self.team2_player2.trueskill_mu
-        self.team2_player2_trueskill_sigma_before = self.team2_player2.trueskill_sigma
+        self.team2_player2_trueskill_sigma_before = self.team2_player2.effective_trueskill_sigma
 
     def save(self, *args, **kwargs):
         # Determine match result from scores before saving
@@ -236,6 +256,7 @@ class Match(models.Model):
         self.team2_player2.matches_lost += team1_won
         
         for player in players:
+            player.last_match_date = self.date_played
             player.save()
         
         super().save(update_fields=['elo_change', 'result'])
