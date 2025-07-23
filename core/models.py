@@ -3,15 +3,16 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 import uuid
 from datetime import timedelta
-from trueskill import Rating, rate
+import trueskill
+
+trueskill.setup(mu=25.0, sigma=25.0/3, beta=6, tau=0.25, draw_probability=0)
 
 class Player(models.Model):
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
-    elo_rating = models.IntegerField(default=1000) # Initial ELO
-    # TrueSkill fields - using default values (mu=25, sigma=25/3)
-    trueskill_mu = models.FloatField(default=25.0)  # TrueSkill mean (skill estimate)
-    trueskill_sigma = models.FloatField(default=25.0/3)  # TrueSkill standard deviation (uncertainty)
+    elo_rating = models.IntegerField(default=1000)
+    trueskill_mu = models.FloatField(default=trueskill.setup().mu)
+    trueskill_sigma = models.FloatField(default=trueskill.setup().sigma)
     matches_played = models.IntegerField(default=0)
     matches_won = models.IntegerField(default=0)
     matches_lost = models.IntegerField(default=0)
@@ -29,7 +30,7 @@ class Player(models.Model):
     @property
     def trueskill_rating(self):
         """Returns TrueSkill rating as a Rating object"""
-        return Rating(mu=self.trueskill_mu, sigma=self.trueskill_sigma)
+        return trueskill.Rating(mu=self.trueskill_mu, sigma=self.trueskill_sigma)
     
     @property
     def trueskill_score(self):
@@ -193,20 +194,20 @@ class Match(models.Model):
         
         # Update TrueSkill ratings
         # Create TrueSkill Rating objects from the captured snapshots
-        team1_rating1 = Rating(mu=self.team1_player1_trueskill_mu_before, sigma=self.team1_player1_trueskill_sigma_before)
-        team1_rating2 = Rating(mu=self.team1_player2_trueskill_mu_before, sigma=self.team1_player2_trueskill_sigma_before)
-        team2_rating1 = Rating(mu=self.team2_player1_trueskill_mu_before, sigma=self.team2_player1_trueskill_sigma_before)
-        team2_rating2 = Rating(mu=self.team2_player2_trueskill_mu_before, sigma=self.team2_player2_trueskill_sigma_before)
-        
+        team1_rating1 = trueskill.Rating(mu=self.team1_player1_trueskill_mu_before, sigma=self.team1_player1_trueskill_sigma_before)
+        team1_rating2 = trueskill.Rating(mu=self.team1_player2_trueskill_mu_before, sigma=self.team1_player2_trueskill_sigma_before)
+        team2_rating1 = trueskill.Rating(mu=self.team2_player1_trueskill_mu_before, sigma=self.team2_player1_trueskill_sigma_before)
+        team2_rating2 = trueskill.Rating(mu=self.team2_player2_trueskill_mu_before, sigma=self.team2_player2_trueskill_sigma_before)
+
         # Calculate new TrueSkill ratings based on match result
         if self.result == self.MatchResult.TEAM1_WIN:
             # Team 1 won
-            (new_team1_rating1, new_team1_rating2), (new_team2_rating1, new_team2_rating2) = rate(
+            (new_team1_rating1, new_team1_rating2), (new_team2_rating1, new_team2_rating2) = trueskill.rate(
                 [(team1_rating1, team1_rating2), (team2_rating1, team2_rating2)], ranks=[0, 1]
             )
         else:
             # Team 2 won
-            (new_team1_rating1, new_team1_rating2), (new_team2_rating1, new_team2_rating2) = rate(
+            (new_team1_rating1, new_team1_rating2), (new_team2_rating1, new_team2_rating2) = trueskill.rate(
                 [(team1_rating1, team1_rating2), (team2_rating1, team2_rating2)], ranks=[1, 0]
             )
         
