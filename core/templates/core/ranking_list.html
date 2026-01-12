@@ -5,12 +5,34 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="mb-0">Player Rankings</h1>
-    {% if user.is_superuser %}
-        <a href="{% url 'elo-recompute' %}" class="btn btn-warning">
-            <i class="bi bi-arrow-clockwise"></i> Recompute Ratings
-        </a>
-    {% endif %}
+    <div class="btn-group">
+        {% if user.is_superuser %}
+            <a href="{% url 'elo-recompute' %}" class="btn btn-warning">
+                <i class="bi bi-arrow-clockwise"></i> Recompute Ratings
+            </a>
+            {% if show_archive_button %}
+            <a href="{% url 'archive-year' %}?year={{ year_to_archive }}" class="btn btn-danger">
+                <i class="bi bi-archive"></i> Archive {{ year_to_archive }}
+            </a>
+            {% endif %}
+        {% endif %}
+    </div>
 </div>
+
+<!-- Past Years Archives Link -->
+{% if archived_years %}
+<div class="alert alert-info mb-4">
+    <i class="bi bi-clock-history"></i> <strong>Past Seasons:</strong>
+    {% for year in archived_years %}
+        <a href="{% url 'archived-year-detail' year=year.year %}" class="btn btn-sm btn-outline-primary ms-2">
+            {{ year.year }}
+        </a>
+    {% endfor %}
+    <a href="{% url 'archived-years-list' %}" class="btn btn-sm btn-secondary ms-2">
+        <i class="bi bi-archive"></i> All Archives
+    </a>
+</div>
+{% endif %}
 
 <div class="card">
     <div class="card-header bg-primary text-white">

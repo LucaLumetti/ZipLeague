@@ -8,14 +8,14 @@
         <div class="col-md-8">
             <div class="card shadow">
                 <div class="card-header bg-warning text-dark">
-                    <h4 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Recompute All Ratings</h4>
+                    <h4 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Recompute Ratings for {{ current_year }}</h4>
                 </div>
                 <div class="card-body">
                     <div class="alert alert-warning" role="alert">
                         <h5 class="alert-heading">⚠️ Warning!</h5>
-                        <p>This action will <strong>permanently reset all player ELO and TrueSkill ratings</strong> to their default values and recalculate them by processing all matches in chronological order.</p>
+                        <p>This action will <strong>reset all player ratings for {{ current_year }}</strong> to their default values and recalculate them by processing all matches from {{ current_year }} in chronological order.</p>
                         <hr>
-                        <p class="mb-0"><strong>This action cannot be undone!</strong></p>
+                        <p class="mb-0"><strong>This action cannot be undone!</strong> (Archived years are not affected)</p>
                     </div>
 
                     <div class="row text-center mb-4">

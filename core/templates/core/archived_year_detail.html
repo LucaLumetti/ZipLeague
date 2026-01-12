@@ -1,0 +1,300 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ archive.year }} Season Archive{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1><i class="bi bi-archive"></i> {{ archive.year }} Season Archive</h1>
+        <a href="{% url 'archived-years-list' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> All Archives
+        </a>
+    </div>
+    <p class="text-muted">Archived on {{ archive.archived_at|date:"F d, Y" }}</p>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-primary">{{ archive.total_players }}</h3>
+                <p class="mb-0">Total Players</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-success">{{ archive.total_matches }}</h3>
+                <p class="mb-0">Total Matches</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-info">{{ statistics.most_matches_in_day.count }}</h3>
+                <p class="mb-0">Most Matches/Day</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="text-warning">{{ statistics.most_matches_in_day.date|date:"M d, Y" }}</h5>
+                <p class="mb-0">Busiest Day</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top 10 Players Chart -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="bi bi-trophy"></i> Top 10 Players - {{ archive.year }}</h4>
+    </div>
+    <div class="card-body">
+        <canvas id="topPlayersChart" height="80"></canvas>
+    </div>
+</div>
+
+<!-- Matches by Month Chart -->
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h4 class="mb-0"><i class="bi bi-graph-up"></i> Matches by Month</h4>
+    </div>
+    <div class="card-body">
+        <canvas id="matchesByMonthChart" height="60"></canvas>
+    </div>
+</div>
+
+<!-- Final Rankings Table -->
+<div class="card mb-4">
+    <div class="card-header bg-dark text-white">
+        <h4 class="mb-0"><i class="bi bi-list-ol"></i> Final Rankings - {{ archive.year }}</h4>
+    </div>
+    <div class="card-body">
+        {% if player_stats %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>TrueSkill Score</th>
+                            <th>ELO Rating</th>
+                            <th>Matches</th>
+                            <th>Win/Loss</th>
+                            <th>Win %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in player_stats %}
+                            <tr>
+                                <td>
+                                    {% if forloop.counter == 1 %}
+                                        <span class="badge bg-warning text-dark">🥇 1</span>
+                                    {% elif forloop.counter == 2 %}
+                                        <span class="badge bg-secondary">🥈 2</span>
+                                    {% elif forloop.counter == 3 %}
+                                        <span class="badge bg-warning" style="background-color: #cd7f32 !important;">🥉 3</span>
+                                    {% else %}
+                                        {{ forloop.counter }}
+                                    {% endif %}
+                                </td>
+                                <td><strong>{{ player.player_name }}</strong></td>
+                                <td>{{ player.trueskill_score|floatformat:1 }}</td>
+                                <td>{{ player.elo_rating }}</td>
+                                <td>{{ player.matches_played }}</td>
+                                <td>{{ player.matches_won }}/{{ player.matches_lost }}</td>
+                                <td>{{ player.win_percentage|floatformat:1 }}%</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">No player statistics available for this archive.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Additional Statistics -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Season Highlights</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <strong>Champion:</strong> 
+                        {% if player_stats %}
+                            🏆 {{ player_stats.0.player_name }} ({{ player_stats.0.trueskill_score|floatformat:1 }} TrueSkill)
+                        {% endif %}
+                    </li>
+                    <li class="mb-2">
+                        <strong>Most Active Player:</strong>
+                        {% if player_stats %}
+                            {% with most_active=player_stats|dictsort:"matches_played"|last %}
+                                {{ most_active.player_name }} ({{ most_active.matches_played }} matches)
+                            {% endwith %}
+                        {% endif %}
+                    </li>
+                    <li class="mb-2">
+                        <strong>Best Win Rate:</strong>
+                        {% if player_stats %}
+                            {% with best_winrate=player_stats|dictsort:"win_percentage"|last %}
+                                {{ best_winrate.player_name }} ({{ best_winrate.win_percentage|floatformat:1 }}%)
+                            {% endwith %}
+                        {% endif %}
+                    </li>
+                    <li class="mb-2">
+                        <strong>Total Matches:</strong> {{ archive.total_matches }}
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> About This Archive</h5>
+            </div>
+            <div class="card-body">
+                <p>This archive contains a complete snapshot of the {{ archive.year }} season, including:</p>
+                <ul>
+                    <li>Final player rankings and statistics</li>
+                    <li>ELO and TrueSkill ratings at season end</li>
+                    <li>Match history and performance data</li>
+                    <li>Activity patterns and trends</li>
+                </ul>
+                <p class="mb-0 text-muted">
+                    <small>Archived on {{ archive.archived_at|date:"F d, Y at g:i A" }}</small>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    const chartData = {{ chart_data|safe }};
+    
+    // Top Players Chart
+    const topPlayersCtx = document.getElementById('topPlayersChart').getContext('2d');
+    new Chart(topPlayersCtx, {
+        type: 'bar',
+        data: {
+            labels: chartData.top_players.labels,
+            datasets: [
+                {
+                    label: 'TrueSkill Score',
+                    data: chartData.top_players.trueskill_scores,
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'ELO Rating',
+                    data: chartData.top_players.elo_ratings,
+                    backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'TrueSkill Score'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'ELO Rating'
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                title: {
+                    display: true,
+                    text: 'Top 10 Players Comparison'
+                }
+            }
+        }
+    });
+    
+    // Matches by Month Chart
+    const matchesByMonthCtx = document.getElementById('matchesByMonthChart').getContext('2d');
+    const monthsData = chartData.matches_by_month;
+    const monthLabels = Object.keys(monthsData).sort();
+    const monthCounts = monthLabels.map(m => monthsData[m]);
+    
+    new Chart(matchesByMonthCtx, {
+        type: 'line',
+        data: {
+            labels: monthLabels.map(m => {
+                const date = new Date(m + '-01');
+                return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            }),
+            datasets: [{
+                label: 'Matches',
+                data: monthCounts,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    },
+                    title: {
+                        display: true,
+                        text: 'Number of Matches'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                title: {
+                    display: true,
+                    text: 'Match Activity Throughout {{ archive.year }}'
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -19,6 +19,12 @@ class MatchForm(forms.ModelForm):
         widgets = {
             'date_played': forms.DateTimeInput(attrs={'type': 'datetime-local'})
         }
+    
+    # Override the player fields to order them alphabetically
+    team1_player1 = forms.ModelChoiceField(queryset=Player.objects.all().order_by('name'), label="Team 1 - Player 1")
+    team1_player2 = forms.ModelChoiceField(queryset=Player.objects.all().order_by('name'), label="Team 1 - Player 2")
+    team2_player1 = forms.ModelChoiceField(queryset=Player.objects.all().order_by('name'), label="Team 2 - Player 1")
+    team2_player2 = forms.ModelChoiceField(queryset=Player.objects.all().order_by('name'), label="Team 2 - Player 2")
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -29,12 +35,6 @@ class MatchForm(forms.ModelForm):
         self.fields['team1_score'].widget.attrs.update({'class': 'form-control'})
         self.fields['team2_score'].widget.attrs.update({'class': 'form-control'})
         self.fields['date_played'].widget.attrs.update({'class': 'form-control'})
-        
-        # Add labels for clarity
-        self.fields['team1_player1'].label = "Team 1 - Player 1"
-        self.fields['team1_player2'].label = "Team 1 - Player 2"
-        self.fields['team2_player1'].label = "Team 2 - Player 1"
-        self.fields['team2_player2'].label = "Team 2 - Player 2"
         
     def clean(self):
         cleaned_data = super().clean()

@@ -1,0 +1,74 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Archive Year {{ year }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0"><i class="bi bi-archive"></i> Archive Year {{ year }}</h4>
+            </div>
+            <div class="card-body">
+                {% if already_archived %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Year {{ year }} has already been archived.
+                        <a href="{% url 'archived-year-detail' year=year %}">View archived year</a>
+                    </div>
+                    <a href="{% url 'rankings' %}" class="btn btn-secondary">Back to Rankings</a>
+                {% elif year >= current_year %}
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Cannot archive the current year ({{ current_year }}).
+                        Only past years can be archived.
+                    </div>
+                    <a href="{% url 'rankings' %}" class="btn btn-secondary">Back to Rankings</a>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <h5><i class="bi bi-exclamation-triangle"></i> Warning: This action cannot be undone!</h5>
+                        <p>Archiving year {{ year }} will:</p>
+                        <ul>
+                            <li>Save a snapshot of all player statistics from {{ year }}</li>
+                            <li>Save {{ match_count }} match(es) to the archive</li>
+                            <li><strong>Reset all player ratings to default (1000 ELO, 25 TrueSkill)</strong></li>
+                            <li>Start fresh rankings for {{ current_year }}</li>
+                        </ul>
+                        <p class="mb-0"><strong>After archiving, all players will start the new season with reset ratings.</strong></p>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="year" value="{{ year }}">
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-warning">
+                                <i class="bi bi-archive"></i> Yes, Archive {{ year }}
+                            </button>
+                            <a href="{% url 'rankings' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if unarchived_years %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Other Years Available for Archiving</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for y in unarchived_years %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Year {{ y }}
+                        <a href="{% url 'archive-year' %}?year={{ y }}" class="btn btn-sm btn-outline-warning">
+                            <i class="bi bi-archive"></i> Archive
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

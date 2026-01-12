@@ -5,19 +5,32 @@ import uuid
 from datetime import timedelta
 import trueskill
 
-trueskill.setup(mu=25.0, sigma=25.0/3, beta=6, tau=0.25, draw_probability=0)
+TRUESKILL_DEFAULT_MU = 25.0
+TRUESKILL_DEFAULT_SIGMA = TRUESKILL_DEFAULT_MU / 3
+TRUESKILL_DEFAULT_BETA = 4.16
+TRUESKILL_DEFAULT_TAU = 0.0833
+TRUESKILL_DEFAULT_DRAW_PROBABILITY = 0.1
+
+trueskill.setup(mu=TRUESKILL_DEFAULT_MU, sigma=TRUESKILL_DEFAULT_SIGMA, beta=TRUESKILL_DEFAULT_BETA, tau=TRUESKILL_DEFAULT_TAU, draw_probability=TRUESKILL_DEFAULT_DRAW_PROBABILITY)
+
+
+def get_current_year():
+    """Helper function to get current year for model defaults"""
+    return timezone.now().year
+
 
 class Player(models.Model):
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     elo_rating = models.IntegerField(default=1000)
-    trueskill_mu = models.FloatField(default=trueskill.setup().mu)
-    trueskill_sigma = models.FloatField(default=trueskill.setup().sigma)
+    trueskill_mu = models.FloatField(default=TRUESKILL_DEFAULT_MU)
+    trueskill_sigma = models.FloatField(default=TRUESKILL_DEFAULT_SIGMA)
     matches_played = models.IntegerField(default=0)
     matches_won = models.IntegerField(default=0)
     matches_lost = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     last_match_date = models.DateTimeField(null=True, blank=True)
+    current_year = models.IntegerField(default=get_current_year)
 
     def __str__(self):
         return self.name
@@ -40,9 +53,9 @@ class Player(models.Model):
             return self.trueskill_sigma
         
         # Apply decay for each day after day 6
-        default_sigma = trueskill.setup().sigma
+        default_sigma = TRUESKILL_DEFAULT_SIGMA
         days_of_decay = days_inactive - 6
-        decay_factor = 0.9 ** days_of_decay
+        decay_factor = 0.99 ** days_of_decay
         decayed_sigma = self.trueskill_sigma * decay_factor + default_sigma * (1 - decay_factor)
         
         return decayed_sigma
@@ -100,6 +113,7 @@ class Match(models.Model):
     team1_score = models.IntegerField() # Scores must be explicitly provided
     team2_score = models.IntegerField() # Scores must be explicitly provided
     date_played = models.DateTimeField(default=timezone.now)
+    year = models.IntegerField(default=get_current_year)
     
     # ELO snapshots before the match
     team1_player1_elo_before = models.IntegerField(default=0)
@@ -108,15 +122,15 @@ class Match(models.Model):
     team2_player2_elo_before = models.IntegerField(default=0)
     
     # TrueSkill snapshots before the match
-    team1_player1_trueskill_mu_before = models.FloatField(default=25.0)
-    team1_player1_trueskill_sigma_before = models.FloatField(default=25.0/3)
-    team1_player2_trueskill_mu_before = models.FloatField(default=25.0)
-    team1_player2_trueskill_sigma_before = models.FloatField(default=25.0/3)
-    team2_player1_trueskill_mu_before = models.FloatField(default=25.0)
-    team2_player1_trueskill_sigma_before = models.FloatField(default=25.0/3)
-    team2_player2_trueskill_mu_before = models.FloatField(default=25.0)
-    team2_player2_trueskill_sigma_before = models.FloatField(default=25.0/3)
-    
+    team1_player1_trueskill_mu_before = models.FloatField(default=TRUESKILL_DEFAULT_MU)
+    team1_player1_trueskill_sigma_before = models.FloatField(default=TRUESKILL_DEFAULT_SIGMA)
+    team1_player2_trueskill_mu_before = models.FloatField(default=TRUESKILL_DEFAULT_MU)
+    team1_player2_trueskill_sigma_before = models.FloatField(default=TRUESKILL_DEFAULT_SIGMA)
+    team2_player1_trueskill_mu_before = models.FloatField(default=TRUESKILL_DEFAULT_MU)
+    team2_player1_trueskill_sigma_before = models.FloatField(default=TRUESKILL_DEFAULT_SIGMA)
+    team2_player2_trueskill_mu_before = models.FloatField(default=TRUESKILL_DEFAULT_MU)
+    team2_player2_trueskill_sigma_before = models.FloatField(default=TRUESKILL_DEFAULT_SIGMA)
+
     class MatchResult(models.TextChoices):
         TEAM1_WIN = 'team1_win', 'Team 1 Win'
         TEAM2_WIN = 'team2_win', 'Team 2 Win'
@@ -151,15 +165,16 @@ class Match(models.Model):
         self.team2_player1_elo_before = self.team2_player1.elo_rating
         self.team2_player2_elo_before = self.team2_player2.elo_rating
         
-        # Capture TrueSkill snapshots using effective sigma (with decay)
+        # Capture TrueSkill snapshots using ACTUAL sigma (not effective with decay)
+        # This allows sigma to decrease naturally through matches
         self.team1_player1_trueskill_mu_before = self.team1_player1.trueskill_mu
-        self.team1_player1_trueskill_sigma_before = self.team1_player1.effective_trueskill_sigma
+        self.team1_player1_trueskill_sigma_before = self.team1_player1.trueskill_sigma
         self.team1_player2_trueskill_mu_before = self.team1_player2.trueskill_mu
-        self.team1_player2_trueskill_sigma_before = self.team1_player2.effective_trueskill_sigma
+        self.team1_player2_trueskill_sigma_before = self.team1_player2.trueskill_sigma
         self.team2_player1_trueskill_mu_before = self.team2_player1.trueskill_mu
-        self.team2_player1_trueskill_sigma_before = self.team2_player1.effective_trueskill_sigma
+        self.team2_player1_trueskill_sigma_before = self.team2_player1.trueskill_sigma
         self.team2_player2_trueskill_mu_before = self.team2_player2.trueskill_mu
-        self.team2_player2_trueskill_sigma_before = self.team2_player2.effective_trueskill_sigma
+        self.team2_player2_trueskill_sigma_before = self.team2_player2.trueskill_sigma
 
     def save(self, *args, **kwargs):
         # Determine match result from scores before saving
@@ -172,6 +187,10 @@ class Match(models.Model):
         # However, forms will call clean(). For direct saves, ensure clean() is called or logic is duplicated.
 
         is_new_match = self.pk is None
+        
+        # Set the year based on date_played
+        if self.date_played:
+            self.year = self.date_played.year
         
         # Call full_clean before saving to ensure model validation, including clean() method
         if is_new_match: # Or always, depending on desired strictness for updates too
@@ -260,3 +279,54 @@ class Match(models.Model):
             player.save()
         
         super().save(update_fields=['elo_change', 'result'])
+
+
+class YearArchive(models.Model):
+    """Model to store archived year data and statistics"""
+    year = models.IntegerField(unique=True)
+    archived_at = models.DateTimeField(auto_now_add=True)
+    total_matches = models.IntegerField(default=0)
+    total_players = models.IntegerField(default=0)
+    
+    # Store statistics as JSON for flexibility
+    statistics = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        ordering = ['-year']
+    
+    def __str__(self):
+        return f"Archive {self.year}"
+    
+    @property
+    def is_current_year(self):
+        return self.year == timezone.now().year
+
+
+class ArchivedPlayerStats(models.Model):
+    """Snapshot of player statistics at the time of archiving"""
+    archive = models.ForeignKey(YearArchive, on_delete=models.CASCADE, related_name='player_stats')
+    player_name = models.CharField(max_length=100)
+    player_email = models.EmailField()
+    elo_rating = models.IntegerField()
+    trueskill_mu = models.FloatField()
+    trueskill_sigma = models.FloatField()
+    matches_played = models.IntegerField()
+    matches_won = models.IntegerField()
+    matches_lost = models.IntegerField()
+    
+    class Meta:
+        ordering = ['-elo_rating']
+        unique_together = ['archive', 'player_email']
+    
+    def __str__(self):
+        return f"{self.player_name} - {self.archive.year}"
+    
+    @property
+    def trueskill_score(self):
+        return self.trueskill_mu - (3 * self.trueskill_sigma)
+    
+    @property
+    def win_percentage(self):
+        if self.matches_played == 0:
+            return 0
+        return (self.matches_won / self.matches_played) * 100

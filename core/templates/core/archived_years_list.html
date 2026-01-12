@@ -1,0 +1,74 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Season Archives{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="bi bi-archive"></i> Season Archives</h1>
+    <a href="{% url 'rankings' %}" class="btn btn-primary">
+        <i class="bi bi-arrow-left"></i> Current Rankings
+    </a>
+</div>
+
+{% if archives %}
+    <div class="row">
+        {% for archive in archives %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-calendar-check"></i> {{ archive.year }} Season
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Players:</span>
+                            <strong>{{ archive.total_players }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Matches:</span>
+                            <strong>{{ archive.total_matches }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Archived:</span>
+                            <strong>{{ archive.archived_at|date:"M d, Y" }}</strong>
+                        </div>
+                    </div>
+                    
+                    {% if archive.player_stats.all %}
+                        <div class="alert alert-success mb-3">
+                            <strong>🏆 Champion:</strong><br>
+                            {% with champion=archive.player_stats.all|first %}
+                                {{ champion.player_name }}<br>
+                                <small>{{ champion.trueskill_score|floatformat:1 }} TrueSkill</small>
+                            {% endwith %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'archived-year-detail' year=archive.year %}" class="btn btn-primary w-100">
+                        <i class="bi bi-eye"></i> View Details & Stats
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <h3 class="mt-3">No Archives Yet</h3>
+            <p class="text-muted">
+                Season archives will appear here once past years have been archived.
+            </p>
+            {% if user.is_superuser %}
+                <a href="{% url 'archive-year' %}" class="btn btn-warning mt-3">
+                    <i class="bi bi-archive"></i> Archive a Year
+                </a>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

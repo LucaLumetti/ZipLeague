@@ -14,8 +14,9 @@ from django.utils.decorators import method_decorator
 from django.db import transaction
 from django.utils import timezone
 import json
+import trueskill
 
-from .models import Player, Match, RegistrationToken
+from .models import TRUESKILL_DEFAULT_MU, TRUESKILL_DEFAULT_SIGMA, Player, Match, RegistrationToken, YearArchive, ArchivedPlayerStats
 from .forms import PlayerForm, MatchForm # Assuming these forms are well-defined
 
 class HomeView(ListView):
@@ -54,10 +55,12 @@ class PlayerDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         player = self.get_object()
-        # Fetch all matches involving this player for their detail page
+        current_year = timezone.now().year
+        # Fetch only current year matches involving this player
         matches_qs = Match.objects.filter(
             Q(team1_player1=player) | Q(team1_player2=player) |
-            Q(team2_player1=player) | Q(team2_player2=player)
+            Q(team2_player1=player) | Q(team2_player2=player),
+            year=current_year
         ).distinct().order_by('-date_played')  # Ensure distinct matches and order by date
         
         # We need to annotate matches with trueskill changes.
@@ -270,6 +273,23 @@ class MatchCreateView(LoginRequiredMixin, CreateView):
     template_name = 'core/match_form.html'
     success_url = reverse_lazy('match-list') # Redirect to match list after creation
     
+    def get_initial(self):
+        """Pre-populate form with the same players and teams from the last match"""
+        initial = super().get_initial()
+        
+        # Get the most recent match
+        last_match = Match.objects.order_by('-date_played').first()
+        
+        if last_match:
+            initial.update({
+                'team1_player1': last_match.team1_player1,
+                'team1_player2': last_match.team1_player2,
+                'team2_player1': last_match.team2_player1,
+                'team2_player2': last_match.team2_player2,
+            })
+        
+        return initial
+    
     def form_valid(self, form):
         # The Match model's save() method handles ELO calculation and player stat updates.
         # MatchForm should validate that a player is not selected more than once.
@@ -311,6 +331,23 @@ class RankingListView(ListView):
         
         context['current_sort'] = sort_by
         context['current_direction'] = direction
+        
+        # Add archive-related context
+        current_year = timezone.now().year
+        context['current_year'] = current_year
+        
+        # Get archived years
+        context['archived_years'] = YearArchive.objects.all()[:5]  # Show up to 5 most recent archives
+        
+        # Check if there are matches from previous years that can be archived
+        # Show archive button only if we're in a new year and there are unarchived matches from previous year
+        previous_year = current_year - 1
+        unarchived_matches = Match.objects.filter(year=previous_year).exists()
+        already_archived = YearArchive.objects.filter(year=previous_year).exists()
+        
+        context['show_archive_button'] = unarchived_matches and not already_archived
+        context['year_to_archive'] = previous_year if context['show_archive_button'] else None
+        
         return context
 
 class UserRegistrationView(UserPassesTestMixin, CreateView):
@@ -401,41 +438,43 @@ class TokenBasedRegistrationView(CreateView):
 
 @method_decorator(user_passes_test(lambda u: u.is_superuser), name='dispatch')
 class EloRecomputeView(View):
-    """Admin-only view to recompute all ELO ratings from scratch"""
+    """Admin-only view to recompute all ELO ratings from scratch for the current year"""
     
     def post(self, request, *args, **kwargs):
+        current_year = timezone.now().year
+        
         try:
             with transaction.atomic():
                 # Reset all players to default ELO, TrueSkill, and stats
                 Player.objects.all().update(
                     elo_rating=1000,
-                    trueskill_mu=25.0,
-                    trueskill_sigma=25.0/3,
+                    trueskill_mu=TRUESKILL_DEFAULT_MU,
+                    trueskill_sigma=TRUESKILL_DEFAULT_SIGMA,
                     matches_played=0,
                     matches_won=0,
                     matches_lost=0,
                     last_match_date=None
                 )
                 
-                # Reset all match ELO changes and snapshots
-                Match.objects.all().update(
+                # Reset match ELO changes and snapshots for current year only
+                Match.objects.filter(year=current_year).update(
                     elo_change=0,
                     team1_player1_elo_before=0,
                     team1_player2_elo_before=0,
                     team2_player1_elo_before=0,
                     team2_player2_elo_before=0,
-                    team1_player1_trueskill_mu_before=25.0,
-                    team1_player1_trueskill_sigma_before=25.0/3,
-                    team1_player2_trueskill_mu_before=25.0,
-                    team1_player2_trueskill_sigma_before=25.0/3,
-                    team2_player1_trueskill_mu_before=25.0,
-                    team2_player1_trueskill_sigma_before=25.0/3,
-                    team2_player2_trueskill_mu_before=25.0,
-                    team2_player2_trueskill_sigma_before=25.0/3,
+                    team1_player1_trueskill_mu_before=TRUESKILL_DEFAULT_MU,
+                    team1_player1_trueskill_sigma_before=TRUESKILL_DEFAULT_SIGMA,
+                    team1_player2_trueskill_mu_before=TRUESKILL_DEFAULT_MU,
+                    team1_player2_trueskill_sigma_before=TRUESKILL_DEFAULT_SIGMA,
+                    team2_player1_trueskill_mu_before=TRUESKILL_DEFAULT_MU,
+                    team2_player1_trueskill_sigma_before=TRUESKILL_DEFAULT_SIGMA,
+                    team2_player2_trueskill_mu_before=TRUESKILL_DEFAULT_MU,
+                    team2_player2_trueskill_sigma_before=TRUESKILL_DEFAULT_SIGMA,
                 )
                 
-                # Process all matches in chronological order
-                matches = Match.objects.all().order_by('date_played')
+                # Process only current year matches in chronological order
+                matches = Match.objects.filter(year=current_year).order_by('date_played')
                 
                 for match in matches:
                     # Refresh player data from database to get current ELO ratings
@@ -460,15 +499,215 @@ class EloRecomputeView(View):
                                             'team2_player1_trueskill_sigma_before', 'team2_player2_trueskill_mu_before',
                                             'team2_player2_trueskill_sigma_before'])
                 
-                messages.success(request, f"ELO and TrueSkill ratings have been recomputed successfully. Processed {matches.count()} matches.")
+                messages.success(request, f"ELO and TrueSkill ratings for {current_year} have been recomputed successfully. Processed {matches.count()} matches.")
         except Exception as e:
             messages.error(request, f"Error recomputing ELO and TrueSkill ratings: {str(e)}")
         
         return redirect('rankings')
     
     def get(self, request, *args, **kwargs):
+        current_year = timezone.now().year
         # Show confirmation page
         return render(request, 'core/elo_recompute_confirm.html', {
-            'total_matches': Match.objects.count(),
-            'total_players': Player.objects.count()
+            'total_matches': Match.objects.filter(year=current_year).count(),
+            'total_players': Player.objects.count(),
+            'current_year': current_year,
         })
+"""
+Archive functionality views - to be added to views.py
+"""
+
+@method_decorator(user_passes_test(lambda u: u.is_superuser), name='dispatch')
+class ArchiveYearView(View):
+    """Admin-only view to archive a year's data"""
+    
+    def post(self, request, *args, **kwargs):
+        year_to_archive = int(request.POST.get('year'))
+        current_year = timezone.now().year
+        
+        # Validation
+        if year_to_archive >= current_year:
+            messages.error(request, f"Cannot archive the current year ({current_year}). Only past years can be archived.")
+            return redirect('rankings')
+        
+        if YearArchive.objects.filter(year=year_to_archive).exists():
+            messages.error(request, f"Year {year_to_archive} has already been archived.")
+            return redirect('rankings')
+        
+        try:
+            with transaction.atomic():
+                # Create the archive record
+                archive = YearArchive.objects.create(
+                    year=year_to_archive
+                )
+                
+                # Get all matches from that year
+                year_matches = Match.objects.filter(year=year_to_archive)
+                archive.total_matches = year_matches.count()
+                
+                # Calculate statistics before archiving
+                statistics = self.calculate_year_statistics(year_to_archive, year_matches)
+                archive.statistics = statistics
+                
+                # Get all players who played in that year
+                player_ids = set()
+                for match in year_matches:
+                    player_ids.add(match.team1_player1.id)
+                    player_ids.add(match.team1_player2.id)
+                    player_ids.add(match.team2_player1.id)
+                    player_ids.add(match.team2_player2.id)
+                
+                players = Player.objects.filter(id__in=player_ids)
+                archive.total_players = players.count()
+                
+                # Archive player statistics
+                for player in players:
+                    ArchivedPlayerStats.objects.create(
+                        archive=archive,
+                        player_name=player.name,
+                        player_email=player.email,
+                        elo_rating=player.elo_rating,
+                        trueskill_mu=player.trueskill_mu,
+                        trueskill_sigma=player.trueskill_sigma,
+                        matches_played=player.matches_played,
+                        matches_won=player.matches_won,
+                        matches_lost=player.matches_lost,
+                    )
+                
+                # Reset all players' stats for the new year
+                Player.objects.all().update(
+                    elo_rating=1000,
+                    trueskill_mu=TRUESKILL_DEFAULT_MU,
+                    trueskill_sigma=TRUESKILL_DEFAULT_SIGMA,
+                    matches_played=0,
+                    matches_won=0,
+                    matches_lost=0,
+                    last_match_date=None,
+                    current_year=current_year
+                )
+                
+                # Update all future year matches to current year
+                Match.objects.filter(year__gt=year_to_archive).update(year=current_year)
+                
+                archive.save()
+                
+                messages.success(
+                    request, 
+                    f"Year {year_to_archive} has been archived successfully! "
+                    f"Archived {archive.total_players} players and {archive.total_matches} matches. "
+                    f"All player ratings have been reset for {current_year}."
+                )
+        except Exception as e:
+            messages.error(request, f"Error archiving year: {str(e)}")
+        
+        return redirect('rankings')
+    
+    def get(self, request, *args, **kwargs):
+        year = int(request.GET.get('year', timezone.now().year - 1))
+        current_year = timezone.now().year
+        
+        # Check if there are any matches from previous years that haven't been archived
+        unarchived_years = Match.objects.filter(
+            year__lt=current_year
+        ).values_list('year', flat=True).distinct().order_by('-year')
+        
+        # Check if this year is already archived
+        already_archived = YearArchive.objects.filter(year=year).exists()
+        
+        # Get match count for the year
+        match_count = Match.objects.filter(year=year).count()
+        
+        return render(request, 'core/archive_year_confirm.html', {
+            'year': year,
+            'current_year': current_year,
+            'match_count': match_count,
+            'already_archived': already_archived,
+            'unarchived_years': list(unarchived_years),
+        })
+    
+    def calculate_year_statistics(self, year, matches):
+        """Calculate comprehensive statistics for the year"""
+        from collections import defaultdict
+        from datetime import datetime
+        
+        stats = {
+            'total_matches': matches.count(),
+            'matches_by_month': defaultdict(int),
+            'matches_by_day': defaultdict(int),
+            'player_partnerships': defaultdict(int),
+            'longest_winning_streak': {},
+            'most_matches_in_day': {'date': None, 'count': 0},
+        }
+        
+        # Calculate matches by month and day
+        for match in matches:
+            month_key = match.date_played.strftime('%Y-%m')
+            stats['matches_by_month'][month_key] += 1
+            
+            day_key = match.date_played.strftime('%Y-%m-%d')
+            stats['matches_by_day'][day_key] += 1
+        
+        # Find day with most matches
+        if stats['matches_by_day']:
+            max_day = max(stats['matches_by_day'].items(), key=lambda x: x[1])
+            stats['most_matches_in_day'] = {'date': max_day[0], 'count': max_day[1]}
+        
+        # Convert defaultdicts to regular dicts for JSON serialization
+        stats['matches_by_month'] = dict(stats['matches_by_month'])
+        stats['matches_by_day'] = dict(stats['matches_by_day'])
+        stats['player_partnerships'] = dict(stats['player_partnerships'])
+        
+        return stats
+
+
+class ArchivedYearDetailView(DetailView):
+    """View to show archived year statistics and rankings"""
+    model = YearArchive
+    template_name = 'core/archived_year_detail.html'
+    context_object_name = 'archive'
+    slug_field = 'year'
+    slug_url_kwarg = 'year'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        archive = self.get_object()
+        
+        # Get archived player stats sorted by TrueSkill
+        player_stats = list(archive.player_stats.all())
+        player_stats.sort(key=lambda p: p.trueskill_score, reverse=True)
+        
+        context['player_stats'] = player_stats
+        context['statistics'] = archive.statistics
+        
+        # Prepare data for charts
+        context['chart_data'] = self.prepare_chart_data(archive, player_stats)
+        
+        return context
+    
+    def prepare_chart_data(self, archive, player_stats):
+        """Prepare data for visualization charts"""
+        import json
+        
+        # Top 10 players by TrueSkill
+        top_players = player_stats[:10]
+        
+        chart_data = {
+            'top_players': {
+                'labels': [p.player_name for p in top_players],
+                'trueskill_scores': [round(p.trueskill_score, 2) for p in top_players],
+                'elo_ratings': [p.elo_rating for p in top_players],
+                'matches_played': [p.matches_played for p in top_players],
+            },
+            'matches_by_month': archive.statistics.get('matches_by_month', {}),
+            'most_matches_in_day': archive.statistics.get('most_matches_in_day', {}),
+        }
+        
+        return json.dumps(chart_data)
+
+
+class ArchivedYearsListView(ListView):
+    """View to list all archived years"""
+    model = YearArchive
+    template_name = 'core/archived_years_list.html'
+    context_object_name = 'archives'
+    ordering = ['-year']

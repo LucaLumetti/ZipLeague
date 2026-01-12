@@ -18,6 +18,11 @@ urlpatterns = [
     # Ranking URL
     path('rankings/', views.RankingListView.as_view(), name='rankings'),
     
+    # Archive URLs
+    path('archives/', views.ArchivedYearsListView.as_view(), name='archived-years-list'),
+    path('archives/<int:year>/', views.ArchivedYearDetailView.as_view(), name='archived-year-detail'),
+    path('archive-year/', views.ArchiveYearView.as_view(), name='archive-year'),
+    
     # ELO Recomputation (admin only) - changed from admin/elo-recompute/ to avoid conflict
     path('elo-recompute/', views.EloRecomputeView.as_view(), name='elo-recompute'),
     
