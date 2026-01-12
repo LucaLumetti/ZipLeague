@@ -679,6 +679,7 @@ class ArchivedYearDetailView(DetailView):
         player_stats.sort(key=lambda p: p.trueskill_score, reverse=True)
         
         context['player_stats'] = player_stats
+        context['chart_data'] = self.prepare_chart_data(archive, player_stats)
         
         # Convert date string to date object for template rendering
         statistics = dict(archive.statistics) if archive.statistics else {}
@@ -688,7 +689,10 @@ class ArchivedYearDetailView(DetailView):
                 try:
                     from datetime import datetime
                     date_str = most_matches['date']
-                    statistics['most_matches_in_day']['date'] = datetime.strptime(date_str, '%Y-%m-%d').date()
+                    statistics['most_matches_in_day'] = {
+                        'date': datetime.strptime(date_str, '%Y-%m-%d').date(),
+                        'count': most_matches.get('count', 0)
+                    }
                 except (ValueError, TypeError) as e:
                     import logging
                     logger = logging.getLogger(__name__)
@@ -696,9 +700,6 @@ class ArchivedYearDetailView(DetailView):
                     statistics['most_matches_in_day']['date'] = None
         
         context['statistics'] = statistics
-        
-        # Prepare data for charts
-        context['chart_data'] = self.prepare_chart_data(archive, player_stats)
         
         return context
     
