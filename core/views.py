@@ -681,11 +681,19 @@ class ArchivedYearDetailView(DetailView):
         context['player_stats'] = player_stats
         
         # Convert date string to date object for template rendering
-        statistics = dict(archive.statistics)
-        if 'most_matches_in_day' in statistics and statistics['most_matches_in_day'].get('date'):
-            from datetime import datetime
-            date_str = statistics['most_matches_in_day']['date']
-            statistics['most_matches_in_day']['date'] = datetime.strptime(date_str, '%Y-%m-%d').date()
+        statistics = dict(archive.statistics) if archive.statistics else {}
+        if 'most_matches_in_day' in statistics and statistics.get('most_matches_in_day'):
+            most_matches = statistics['most_matches_in_day']
+            if isinstance(most_matches, dict) and most_matches.get('date'):
+                try:
+                    from datetime import datetime
+                    date_str = most_matches['date']
+                    statistics['most_matches_in_day']['date'] = datetime.strptime(date_str, '%Y-%m-%d').date()
+                except (ValueError, TypeError) as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Error converting date string '{date_str}': {e}")
+                    statistics['most_matches_in_day']['date'] = None
         
         context['statistics'] = statistics
         
@@ -701,6 +709,11 @@ class ArchivedYearDetailView(DetailView):
         # Top 10 players by TrueSkill
         top_players = player_stats[:10]
         
+        # Get most_matches_in_day but keep date as string for JSON serialization
+        most_matches_data = archive.statistics.get('most_matches_in_day', {})
+        if most_matches_data and isinstance(most_matches_data, dict):
+            most_matches_data = dict(most_matches_data)  # Create a copy
+        
         chart_data = {
             'top_players': {
                 'labels': [p.player_name for p in top_players],
@@ -709,7 +722,7 @@ class ArchivedYearDetailView(DetailView):
                 'matches_played': [p.matches_played for p in top_players],
             },
             'matches_by_month': archive.statistics.get('matches_by_month', {}),
-            'most_matches_in_day': archive.statistics.get('most_matches_in_day', {}),
+            'most_matches_in_day': most_matches_data,
         }
         
         return json.dumps(chart_data)
