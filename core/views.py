@@ -679,7 +679,15 @@ class ArchivedYearDetailView(DetailView):
         player_stats.sort(key=lambda p: p.trueskill_score, reverse=True)
         
         context['player_stats'] = player_stats
-        context['statistics'] = archive.statistics
+        
+        # Convert date string to date object for template rendering
+        statistics = dict(archive.statistics)
+        if 'most_matches_in_day' in statistics and statistics['most_matches_in_day'].get('date'):
+            from datetime import datetime
+            date_str = statistics['most_matches_in_day']['date']
+            statistics['most_matches_in_day']['date'] = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        context['statistics'] = statistics
         
         # Prepare data for charts
         context['chart_data'] = self.prepare_chart_data(archive, player_stats)
