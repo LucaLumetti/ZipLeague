@@ -129,10 +129,12 @@ class PlayerDetailView(DetailView):
 
     def generate_trueskill_history(self, player):
         """Generate historical TrueSkill progression for chart display"""
-        # Get all matches involving this player in chronological order
+        current_year = timezone.now().year
+        # Get only current year matches involving this player in chronological order
         matches = Match.objects.filter(
             Q(team1_player1=player) | Q(team1_player2=player) | 
-            Q(team2_player1=player) | Q(team2_player2=player)
+            Q(team2_player1=player) | Q(team2_player2=player),
+            year=current_year
         ).distinct().order_by('date_played')
         
         if not matches.exists():
